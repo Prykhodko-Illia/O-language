@@ -20,9 +20,18 @@ I used two separate Claude Code sessions:
 
 Below is every prompt I sent in each session, quoted as written, followed by what the AI did.
 
+======================================
+SESSION 1 - generating syntax and idea
+======================================
+Tool:    Gemini
+Model:   Gemini 3.8 Flash 
+link:    https://share.gemini.google/JaQt2OcoiJnK
 
-SESSION 1 - building the stage
+
 ==============================
+SESSION 2 - building the stage
+==============================
+
 
 1. Prompt:
    [attached w04-project-stage1.pdf]
@@ -224,7 +233,8 @@ SESSION 1 - building the stage
    and listed ':' among the unknown bytes in the README. 69 tests, all passing.
 
 
-SESSION 2 - review against the PDF
+==================================
+SESSION 3 - review against the PDF
 ==================================
 A separate Claude Code session that read the PDF and the repository, ran the tests and listed
 what did not yet follow the PDF. It did not write the code; I took its findings to session 1.
