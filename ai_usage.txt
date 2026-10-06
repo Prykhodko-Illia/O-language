@@ -1,0 +1,139 @@
+AI usage log - Project Stage 1 (language design, lexer and parser)
+==================================================================
+
+Tool:    Claude Code (Claude desktop app, Code tab)
+Model:   Claude Opus 5.5 (claude-opus-5-5)
+Date:    2026-10-06
+Setup:   The AI read the stage PDF, read my Practice 1-4 code in ~/Study/compilers, and created and
+         edited the files in ~/Study/compilers-proj on my Mac. Commits on the stage1 branch were made
+         under my own git identity. I create the GitHub repository, push, add the reviewer and open
+         the pull request myself.
+
+The language design (every keyword, the operators, the statements, the unique feature and the
+extras) is mine: I wrote it and sent it to the AI. The AI checked it against the PDF, settled the
+points that were ambiguous (listed below), and wrote the implementation, tests and documentation.
+
+Below is every prompt I sent, quoted as written, followed by what the AI did.
+
+
+1. Prompt:
+   [attached w04-project-stage1.pdf]
+   "Hello, claude, look at this
+   we have one hour for all of that.
+   I want to design language, so that tell what I should tell you and then build it on your own by
+   strictly following file's requirements
+   ok, also I have fully done 4 previous practices? so that you can borrow something from that
+   it is in the 'compilers' folder
+   the project itself should be in the 'compilers-proj' folder"
+
+   What the AI did:
+   Extracted the text of the PDF, read my practice code (lexer, parser, AST, test script, README),
+   asked how to handle git (answer: local git, I push), created the repository with main and
+   stage1 branches, and listed the design decisions it needed from me.
+
+
+2. Prompt:
+   "do not write e.g.
+   just punkts of what I have to provide"
+
+   What the AI did:
+   Gave the list without examples: type names, literals, mutable marker, declaration shape,
+   assignment, operators, if / else, blocks, exit, statement separator, unique feature, extras.
+
+
+3. Prompt (my language design, pasted as written):
+   "Types & Literals
+   * i32: `doze` (standard 32-round capacity)
+   * i64: `fawty` (extended capacity / drum)
+   * bool: `line` (binary territory state: clear or compromised)
+   * true literal: `merch` (strictly sworn, verified truth)
+   * false literal: `woof` (false claims, barking without backing)
+   Variables & Storage
+   * Declaration shape: `tuck <identifier>: <type>`
+   * Mutable marker & placement: `sliding` prefix (`tuck sliding <identifier>: <type>`). Immutable by
+     default (`tucked`).
+   * Assignment operator: `post` (binds a value to a register/identifier; e.g., `x post 100`)
+   Operators
+   * Arithmetic: Add: `bump`, Subtract: `tuck_in`, Multiply: `double_back`, Divide: `breakdown`,
+     Modulo: `scraps`
+   * Equals operator: `in_tune` (`a in_tune b`)
+   * Not-equals operator: `fugazi` (`a fugazi b`)
+   Control Flow & Blocks
+   * if keyword: `spot`
+   * else keyword: `pivot`
+   * Block open / close: `creepin { ... } ghost`
+   * Return statement: `cuh` (returns value or exits current frame; e.g., `cuh 0`)
+   * Exit / Abort statement: `scat` (immediate process termination/panic)
+   * Statement separator / line rule: `no_bap` (strictly required terminal delimiter)
+   Unique Feature & Extras
+   * Unique syntax feature (`on_the_guys` invariant): Compile-time or runtime contract
+     verification. Evaluates the enclosed condition; panics immediately if the state evaluates
+     to `woof`.  on_the_guys(target in_tune 40) no_bap
+   * Extras:
+     * Function declaration: `drill <fn_name>(<params>) cuh <return_type>`
+     * Line comment: `lowkey // commentary`
+     * Block comment: `huddle /* ... */`
+     * Print / stdout: `air_out("message") no_bap`
+   Example Routine
+   drill run_check(target: doze) cuh bool creepin {
+       tuck sliding counter: doze post target no_bap
+       spot (counter fugazi 0) creepin {
+           counter post counter tuck_in 1 no_bap
+           on_the_guys(counter in_tune 0) no_bap
+           cuh merch no_bap
+       } ghost pivot creepin {
+           air_out("empty") no_bap
+           cuh woof no_bap
+       } ghost
+   } ghost
+   this style
+   main rule: DO NOT INCLUDE YOURSELF IN COMMIT AUTHOR's"
+
+   What the AI did:
+   Checked the design against the PDF's required features (all present) and decided the open
+   points, which I accepted:
+     - `cuh bool` in my example became `cuh line`, because the bool type is `line`;
+     - `tucked` is not a keyword: a declaration without `sliding` is immutable;
+     - every declaration needs `post <expr>`;
+     - a block is `creepin { statement+ } ghost` and is never empty;
+     - `no_bap` ends simple statements; `spot` and `drill` end with `ghost` and take none;
+       newlines are just whitespace;
+     - `lowkey` starts a comment to the end of the line; block comments (`huddle`) were left out
+       because the design gives no way to close them;
+     - `( )` group expressions, so `spot (x fugazi 0)` and `spot x fugazi 0` both work;
+     - overflow: a number above the fawty (i64) maximum is a lexical error; checks that depend on
+       the type are left for stage 2.
+   Then wrote, borrowing the structure of my practice code:
+     - src/lexer.py: new byte state machine (START, WORD, NUMBER, STRING, COMMENT) producing one
+       token stream with an eof token instead of a list of lines;
+     - src/ast_nodes.py: ASTNode / ProgramNode / FunctionNode / StmtNode / ExprNode hierarchy with
+       dump();
+     - src/parser.py: recursive descent with peek/eat, one method per grammar rule;
+     - compiler.py with --ast and --tokens; src/errors.py copied from my practice;
+     - grammar.ebnf;
+     - 21 valid and 30 invalid test programs with expected outputs, and run_tests.sh;
+     - README.md.
+   The expected files were generated by running the compiler and then checked by reading every
+   error line and the AST dumps.
+   No commit has the AI as an author or co-author.
+
+
+4. Prompt:
+   "project name is O-language
+   lore: balck man from O-block now decided to do good things and carry business correctly with
+   good behave, so that they now implemented own language
+   and generate something interesting - you can even make it as a rap - King Von story type shi"
+
+   What the AI did:
+   Renamed the language to O-language in README.md and grammar.ebnf, and wrote the lore section and
+   an original story-rap about leaving the old life and writing a compiler, using the keywords of
+   the language. No lyrics of any real artist were used.
+
+
+What I took as it was and what I changed
+----------------------------------------
+- Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.
+- Mine: the whole language design (prompt 3), the name and the lore idea (prompt 4).
+- Changed by me after review: [fill in anything you edit before submitting]
+
+Chat transcript: [add the link to the Claude Code session / exported transcript here]
