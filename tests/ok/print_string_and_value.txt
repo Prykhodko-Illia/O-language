@@ -1,3 +1,3 @@
-tuck x: doze post 3 no_bap
+doze x post 3 no_bap
 air_out("x is 🔥") no_bap
 air_out(x bump 1) no_bap

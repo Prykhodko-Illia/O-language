@@ -158,10 +158,22 @@ Below is every prompt I sent, quoted as written, followed by what the AI did.
    (param_old_colon_style), and a type without a name is another (param_without_name). 54 tests pass.
 
 
+7. Prompt:
+   "make variable declarations c++ style too"
+
+   What the AI did:
+   Changed declarations to  [ sliding ] type name post value no_bap  (e.g.  sliding doze counter post 0 no_bap),
+   so "tuck" is no longer a keyword (tuck_in stays the minus operator). A type now starts both a
+   function and a declaration, so the parser eats the type and decides by the next token: "drill"
+   means a function, a name means a declaration. Updated the parser, lexer, grammar.ebnf, every
+   test, the README (including the lore and one line of the rap that used "tuck") and this file.
+   New error tests: old_tuck_style, sliding_after_type, sliding_function, nested_typed_function.
+
+
 What I took as it was and what I changed
 ----------------------------------------
 - Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.
-- Mine: the whole language design (prompts 3, 5 and 6), the name and the lore idea (prompt 4).
+- Mine: the whole language design (prompts 3, 5, 6 and 7), the name and the lore idea (prompt 4).
 - Changed by me after review: [fill in anything you edit before submitting]
 
 Chat transcript: [add the link to the Claude Code session / exported transcript here]

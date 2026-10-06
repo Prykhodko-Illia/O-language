@@ -1,5 +1,5 @@
 doze drill twice(doze n) {
     cuh n double_back 2 no_bap
 }
-tuck x: doze post twice(twice(3)) bump 1 no_bap
+doze x post twice(twice(3)) bump 1 no_bap
 twice(x) no_bap

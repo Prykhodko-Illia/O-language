@@ -1,1 +1,1 @@
-tuck x: doze post "five" no_bap
+doze x post "five" no_bap

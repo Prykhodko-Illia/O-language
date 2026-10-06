@@ -1,1 +1,1 @@
-tuck x: int post 5 no_bap
+int x post 5 no_bap

@@ -1,2 +1,2 @@
-tuck yes: line post merch no_bap
-tuck no: line post woof no_bap
+line yes post merch no_bap
+line no post woof no_bap

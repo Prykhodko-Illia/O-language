@@ -1,3 +1,3 @@
-tuck sliding a: doze post 1 no_bap
-tuck sliding b: fawty post 2 no_bap
-tuck sliding c: line post merch no_bap
+sliding doze a post 1 no_bap
+sliding fawty b post 2 no_bap
+sliding line c post merch no_bap

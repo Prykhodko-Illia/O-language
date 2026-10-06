@@ -1,1 +1,1 @@
-compilation error: line 1:22: variable 'x' needs an initial value: 'post' and an expression
+compilation error: line 1:16: variable 'x' needs an initial value: 'post' and an expression

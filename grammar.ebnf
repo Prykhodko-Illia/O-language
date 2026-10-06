@@ -10,7 +10,7 @@
  * Terminals come straight from the lexer (src/lexer.py):
  *   "doze" "fawty" "line"                          type names: i32, i64, bool
  *   "merch" "woof"                                 boolean literals: true, false
- *   "tuck" "sliding" "post"                        declaration, mutable marker, assignment
+ *   "sliding" "post"                               mutable marker, assignment and initial value
  *   "bump" "tuck_in" "double_back"                 + - *
  *   "breakdown" "scraps"                           / %
  *   "in_tune" "fugazi"                             == !=
@@ -47,7 +47,7 @@ block     ::= "{" statement { statement } "}"
 
 statement ::= decl | assign | call_stmt | if | return | exit | assert | print
 
-decl      ::= "tuck" [ "sliding" ] ident ":" type "post" expr "no_bap"
+decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
 
 type      ::= "doze" | "fawty" | "line"
 
@@ -86,6 +86,7 @@ call      ::= ident "(" [ expr { "," expr } ] ")"
  * every other statement ends with "no_bap". A block always has at least one statement,
  * and a function is declared only at the top level, never inside a block.
  *
- * assign and call_stmt both start with ident: the parser eats the name and then decides
- * by the next token -- "post" or "(".
+ * Two pairs of rules share their first token, C++ style, and the parser eats that token and
+ * decides by the next one: after a type, "drill" starts a function and a name starts a
+ * declaration; after a name, "post" starts an assignment and "(" a call.
  *)

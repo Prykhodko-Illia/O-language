@@ -1,5 +1,5 @@
 line drill run_check(doze target) {
-    tuck sliding counter: doze post target no_bap
+    sliding doze counter post target no_bap
 
     spot (counter fugazi 0) {
         counter post counter tuck_in 1 no_bap

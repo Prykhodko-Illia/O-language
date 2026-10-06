@@ -36,7 +36,7 @@ class Token:
 KEYWORDS = {
     "doze": "type", "fawty": "type", "line": "type",
     "merch": "bool", "woof": "bool",
-    "tuck": "decl", "sliding": "mutable", "post": "assign",
+    "sliding": "mutable", "post": "assign",
     "bump": "operator", "tuck_in": "operator", "double_back": "operator",
     "breakdown": "operator", "scraps": "operator",
     "in_tune": "compare", "fugazi": "compare",

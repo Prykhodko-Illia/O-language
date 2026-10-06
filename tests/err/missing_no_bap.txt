@@ -1,2 +1,2 @@
-tuck x: doze post 5
-tuck y: doze post 6 no_bap
+doze x post 5
+doze y post 6 no_bap

@@ -1,1 +1,1 @@
-compilation error: line 1:29: expected ')' to close '(', found keyword 'no_bap'
+compilation error: line 1:23: expected ')' to close '(', found keyword 'no_bap'

@@ -1,4 +1,4 @@
-tuck sliding x: fawty post 5 no_bap
+sliding fawty x post 5 no_bap
 spot x fugazi 0 {
     spot x in_tune 5 {
         x post 50 no_bap

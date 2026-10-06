@@ -1,3 +1,3 @@
 lowkey a comment on its own line
-tuck x: doze post 1 no_bap lowkey a comment after a statement
-lowkey tuck y: doze post 2 no_bap   <- not code, all ignored ( / = "
+doze x post 1 no_bap lowkey a comment after a statement
+lowkey doze y post 2 no_bap   <- not code, all ignored ( / = "

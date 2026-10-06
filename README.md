@@ -6,7 +6,7 @@
 
 He grew up on O-Block, where every word had two meanings and the wrong one could cost you. One day he decided
 the old life was over: no more running, no more ducking, just honest business done right. But he kept the words.
-A `tuck` stopped meaning hiding something and started meaning putting a value away safely. A `drill` stopped being
+`sliding` stopped meaning pulling up on somebody and started meaning a value that is allowed to change. A `drill` stopped being
 trouble and became a routine you call by name. `spot` is still about checking the situation before you move, and
 `on_the_guys` is still a promise, except now the compiler holds you to it. So he wrote it all down as a language,
 called it O-language, and made every program end its sentences properly: `no_bap`.
@@ -25,7 +25,7 @@ Every line that I write got a no_bap at the end,
 'Cause a sentence left open is a problem again.
 
 Hook
-I don't tuck no steel, I tuck my values in,
+I don't slide on nobody, I slide my values in,
 I spot what's in_tune, pivot when it's fugazi then,
 I drill a routine, cuh back what's merch,
 On_the_guys every promise, put the word to work.
@@ -72,7 +72,7 @@ On success the tree goes to stdout, with exit code 0. On a lexical or syntax err
 exit code 1, and no output:
 
 ```
-compilation error: line 2:1: expected 'no_bap' to end the declaration, found keyword 'tuck'
+compilation error: line 2:1: expected 'no_bap' to end the declaration, found keyword 'doze'
 ```
 
 `line:column` is the 1-based position of the first byte of the token that broke the rule. When the file ends too
@@ -103,7 +103,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 | `fawty` | i64 | `tuck_in` | `-` |
 | `line` | bool | `double_back` | `*` |
 | `merch` / `woof` | true / false | `breakdown` | `/` |
-| `tuck` | declare | `scraps` | `%` |
+| `type name post value` | declare (C++ style) | `scraps` | `%` |
 | `sliding` | mutable | `in_tune` | `==` |
 | `post` | assign / initialise | `fugazi` | `!=` |
 | `spot` / `pivot` | if / else | `drill` | function |
@@ -121,16 +121,16 @@ Three types: `doze` (32-bit integer), `fawty` (64-bit integer) and `line` (boole
 A number is decimal digits with no sign; write `0 tuck_in 5` for -5.
 
 ```
-tuck small: doze post 42 no_bap
-tuck big: fawty post 9223372036854775807 no_bap
-tuck ok: line post merch no_bap
+doze small post 42 no_bap
+fawty big post 9223372036854775807 no_bap
+line ok post merch no_bap
 ```
 
 **Overflow check:** a number above `9223372036854775807` (the fawty maximum) is rejected by the lexer:
 
 ```
-tuck big: fawty post 9223372036854775808 no_bap
-compilation error: line 1:22: constant 9223372036854775808 does not fit even in fawty (max 9223372036854775807)
+fawty big post 9223372036854775808 no_bap
+compilation error: line 1:16: constant 9223372036854775808 does not fit even in fawty (max 9223372036854775807)
 ```
 
 Whether a value fits the 32 bits of a `doze` depends on the type it lands in, so that check belongs to the semantic
@@ -138,12 +138,12 @@ pass of stage 2.
 
 ### Constant and mutable variables
 
-`tuck name: type post value no_bap` declares a variable. Without a marker it is **tucked** (immutable); with
-`sliding` before the name it is mutable. The initial value is mandatory.
+C++ style: `type name post value no_bap` declares a variable. Without a marker it is **tucked** (immutable); with
+`sliding` before the type it is mutable. The initial value is mandatory.
 
 ```
-tuck limit: doze post 10 no_bap              lowkey tucked: never changes
-tuck sliding counter: fawty post 0 no_bap    lowkey sliding: can be posted again
+doze limit post 10 no_bap              lowkey tucked: never changes
+sliding fawty counter post 0 no_bap    lowkey sliding: can be posted again
 ```
 
 ### Assignment
@@ -161,11 +161,11 @@ left to right; `( )` groups. A comparison (`in_tune`, `fugazi`) binds weakest an
 expression, unless you group with `( )`.
 
 ```
-tuck a: doze post 2 bump 3 double_back 4 no_bap          lowkey 2 + (3 * 4) = 14
-tuck b: doze post 10 tuck_in 3 tuck_in 2 no_bap          lowkey (10 - 3) - 2 = 5
-tuck c: doze post (2 bump 3) double_back 4 no_bap        lowkey 20
-tuck d: line post a fugazi b no_bap                      lowkey a != b
-tuck e: line post (a in_tune 14) in_tune merch no_bap
+doze a post 2 bump 3 double_back 4 no_bap          lowkey 2 + (3 * 4) = 14
+doze b post 10 tuck_in 3 tuck_in 2 no_bap          lowkey (10 - 3) - 2 = 5
+doze c post (2 bump 3) double_back 4 no_bap        lowkey 20
+line d post a fugazi b no_bap                      lowkey a != b
+line e post (a in_tune 14) in_tune merch no_bap
 ```
 
 ### if / else
@@ -192,7 +192,7 @@ fawty drill add(doze a, fawty b) {
     cuh a bump b no_bap
 }
 
-tuck x: fawty post add(1, 2) double_back 3 no_bap
+fawty x post add(1, 2) double_back 3 no_bap
 add(x, x) no_bap
 ```
 
@@ -218,7 +218,7 @@ lowkey everything after lowkey is ignored up to the end of the line
 
 ```
 line drill run_check(doze target) {
-    tuck sliding counter: doze post target no_bap
+    sliding doze counter post target no_bap
 
     spot (counter fugazi 0) {
         counter post counter tuck_in 1 no_bap
@@ -263,7 +263,7 @@ children of a node.
 | Caught by | What |
 |---|---|
 | lexer | an unknown byte (`+`, `=`, `/`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
-| parser | a missing `no_bap`, `:`, type, `post` initialiser, `{` or `}`; a type without `drill` (`doze x …`); an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block |
+| parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block |
 
 ---
 

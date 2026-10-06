@@ -1,1 +1,1 @@
-compilation error: line 1:19: invalid number '10x': a letter inside a number
+compilation error: line 1:13: invalid number '10x': a letter inside a number
