@@ -4,9 +4,9 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
 
   program   ::= { item }
   item      ::= function | statement
-  function  ::= "drill" ident "(" [ param { "," param } ] ")" [ "cuh" type ] block
+  function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
   param     ::= ident ":" type
-  block     ::= "creepin" "{" statement { statement } "}" "ghost"
+  block     ::= "{" statement { statement } "}"
   statement ::= decl | assign | call_stmt | if | return | exit | assert | print
   decl      ::= "tuck" [ "sliding" ] ident ":" type "post" expr "no_bap"
   type      ::= "doze" | "fawty" | "line"
@@ -91,14 +91,20 @@ class Parser:
         first = self.peek()
         items = []
         while not self.at("eof"):
-            if self.at("keyword", "drill"):
+            if self.at("keyword", "drill") or self.at_sub("type"):
                 items.append(self.parse_function())
             else:
                 items.append(self.parse_statement())
         return ProgramNode(first.line, first.col, items)
 
     def parse_function(self):
-        """function ::= "drill" ident "(" [ param { "," param } ] ")" [ "cuh" type ] block"""
+        """function ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block"""
+        return_type = None
+        if self.at_sub("type"):
+            return_type = self.eat().text
+            if not self.at("keyword", "drill"):
+                raise self.error(f"expected 'drill' after the return type '{return_type}', "
+                                 f"found {describe(self.peek())} (a variable is declared with 'tuck')")
         self.eat()                                             # drill
         name = self.expect("identifier", None, "a function name after 'drill'")
         self.expect("punct", "(", f"'(' after the function name '{name.text}'")
@@ -109,10 +115,6 @@ class Parser:
                 self.eat()
                 params.append(self.parse_param())
         self.expect("punct", ")", "',' or ')' in the parameter list")
-        return_type = None
-        if self.at("keyword", "cuh"):
-            self.eat()
-            return_type = self.parse_type()
         body = self.parse_block(f"the body of '{name.text}'")
         return FunctionNode(name.line, name.col, name.text, params, return_type, body)
 
@@ -129,18 +131,16 @@ class Parser:
         return self.eat().text
 
     def parse_block(self, what):
-        """block ::= "creepin" "{" statement { statement } "}" "ghost" """
-        self.expect("keyword", "creepin", f"'creepin' to open {what}")
-        self.expect("punct", "{", "'{' after 'creepin'")
+        """block ::= "{" statement { statement } "}" """
+        self.expect("punct", "{", f"'{{' to open {what}")
         if self.at("punct", "}"):
             raise self.error(f"{what} is empty: a block needs at least one statement")
         body = [self.parse_statement()]
         while not self.at("punct", "}"):
             if self.at("eof"):
-                raise self.error(f"{what} is not closed: expected '}} ghost'")
+                raise self.error(f"{what} is not closed: expected '}}'")
             body.append(self.parse_statement())
         self.eat()                                             # }
-        self.expect("keyword", "ghost", "'ghost' after '}'")
         return body
 
     def parse_statement(self):
@@ -157,7 +157,7 @@ class Parser:
             }.get(token.text)
             if method:
                 return method()
-            if token.text == "drill":
+            if token.text == "drill" or token.sub == "type":
                 raise self.error("a function can only be declared at the top level, not inside a block")
         if token.kind == "identifier":
             return self.parse_assign_or_call()

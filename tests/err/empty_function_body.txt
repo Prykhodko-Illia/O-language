@@ -1,1 +1,1 @@
-drill f() cuh doze creepin { } ghost
+doze drill f() { }

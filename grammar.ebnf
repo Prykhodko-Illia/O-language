@@ -15,8 +15,8 @@
  *   "breakdown" "scraps"                           / %
  *   "in_tune" "fugazi"                             == !=
  *   "spot" "pivot"                                 if, else
- *   "creepin" "ghost"                              open and close a block, around { }
  *   "drill" "cuh" "scat"                           function, return, exit
+ *                                                  (C++ style: the return type goes before "drill")
  *   "on_the_guys" "air_out"                        assert, print
  *   "no_bap"                                       end of a simple statement
  *   "{" "}" "(" ")" ":" ","                        punctuation, one byte each
@@ -39,11 +39,11 @@ program   ::= { item }
 
 item      ::= function | statement
 
-function  ::= "drill" ident "(" [ param { "," param } ] ")" [ "cuh" type ] block
+function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
 
 param     ::= ident ":" type
 
-block     ::= "creepin" "{" statement { statement } "}" "ghost"
+block     ::= "{" statement { statement } "}"
 
 statement ::= decl | assign | call_stmt | if | return | exit | assert | print
 
@@ -82,7 +82,7 @@ call      ::= ident "(" [ expr { "," expr } ] ")"
  * for a "bump", so "double_back" binds tighter than "bump"; each loop keeps what it has so
  * far as the left child, so 10 tuck_in 3 tuck_in 2 is (10 - 3) - 2.
  *
- * Statements with a block ("spot", "drill") end with "ghost" and take no "no_bap";
+ * Statements with a block ("spot", "drill") end with "}" and take no "no_bap";
  * every other statement ends with "no_bap". A block always has at least one statement,
  * and a function is declared only at the top level, never inside a block.
  *

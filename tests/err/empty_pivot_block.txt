@@ -1,1 +1,1 @@
-spot merch creepin { scat no_bap } ghost pivot creepin { } ghost
+spot merch { scat no_bap } pivot { }

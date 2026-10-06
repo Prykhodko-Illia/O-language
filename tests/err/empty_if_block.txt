@@ -1,2 +1,2 @@
-spot merch creepin {
-} ghost
+spot merch {
+}

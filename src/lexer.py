@@ -40,7 +40,7 @@ KEYWORDS = {
     "bump": "operator", "tuck_in": "operator", "double_back": "operator",
     "breakdown": "operator", "scraps": "operator",
     "in_tune": "compare", "fugazi": "compare",
-    "spot": "if", "pivot": "else", "creepin": "open", "ghost": "close",
+    "spot": "if", "pivot": "else",
     "drill": "function", "cuh": "return", "scat": "exit",
     "on_the_guys": "assert", "air_out": "print",
     "no_bap": "end",

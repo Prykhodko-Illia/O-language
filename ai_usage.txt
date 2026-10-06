@@ -95,8 +95,8 @@ Below is every prompt I sent, quoted as written, followed by what the AI did.
      - `cuh bool` in my example became `cuh line`, because the bool type is `line`;
      - `tucked` is not a keyword: a declaration without `sliding` is immutable;
      - every declaration needs `post <expr>`;
-     - a block is `creepin { statement+ } ghost` and is never empty;
-     - `no_bap` ends simple statements; `spot` and `drill` end with `ghost` and take none;
+     - a block is `creepin { statement+ } ghost` and is never empty (changed in prompt 5);
+     - `no_bap` ends simple statements; `spot` and `drill` end with their block and take none;
        newlines are just whitespace;
      - `lowkey` starts a comment to the end of the line; block comments (`huddle`) were left out
        because the design gives no way to close them;
@@ -130,10 +130,29 @@ Below is every prompt I sent, quoted as written, followed by what the AI did.
    the language. No lyrics of any real artist were used.
 
 
+5. Prompt:
+   "wait, please redo it so it would be more like c++ style
+   doze drill function_name() {
+   }
+   but in my semantic that I provided
+   maybe also kepp {} as is without adding other words for opening and closing"
+
+   What the AI did:
+   Changed the syntax and kept the rest of my design:
+     - a function is now  [ type ] drill name(param: type, ...) { ... }  -- the return type comes
+       first, as in C++, instead of "cuh <type>" after the parameters (cuh is now only return);
+     - a block is now plain  { statement+ }  -- "creepin" and "ghost" were removed from the lexer,
+       the grammar, the tests and the README;
+     - a type at the start of a line must be followed by "drill", so  doze x post 5 no_bap  is a
+       syntax error that tells you variables are declared with "tuck".
+   Updated grammar.ebnf, the parser, every test program and its expected output, the README and
+   this file; added tests for the new error cases (53 tests, all passing).
+
+
 What I took as it was and what I changed
 ----------------------------------------
 - Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.
-- Mine: the whole language design (prompt 3), the name and the lore idea (prompt 4).
+- Mine: the whole language design (prompts 3 and 5), the name and the lore idea (prompt 4).
 - Changed by me after review: [fill in anything you edit before submitting]
 
 Chat transcript: [add the link to the Claude Code session / exported transcript here]

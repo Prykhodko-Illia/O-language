@@ -37,7 +37,7 @@ Parser go deep, recursive descent,
 Every node in the tree know exactly where it went.
 Doze for the small things, fawty for the bread,
 Line tell the truth, merch or woof, like I said.
-Creepin in a block, but I ghost when it's done,
+Open the brace, do the work, close it when it.s done,
 Now the only thing I'm scatting is a program that run.
 
 Outro
@@ -107,7 +107,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 | `sliding` | mutable | `in_tune` | `==` |
 | `post` | assign / initialise | `fugazi` | `!=` |
 | `spot` / `pivot` | if / else | `drill` | function |
-| `creepin { … } ghost` | a block | `cuh` | return (and the return type) |
+| `{ … }` | a block | `cuh` | return |
 | `no_bap` | end of a statement | `scat` | exit the program |
 | `on_the_guys( … )` | assert | `air_out( … )` | print |
 | `lowkey` | comment to the end of the line | | |
@@ -170,27 +170,27 @@ tuck e: line post (a in_tune 14) in_tune merch no_bap
 
 ### if / else
 
-`spot condition creepin { statements } ghost`, optionally followed by `pivot creepin { statements } ghost`.
+`spot condition { statements }`, optionally followed by `pivot { statements }`.
 Each block holds at least one statement. Blocks nest.
 
 ```
-spot (counter fugazi 0) creepin {
+spot (counter fugazi 0) {
     counter post counter tuck_in 1 no_bap
-} ghost pivot creepin {
+} pivot {
     air_out("done") no_bap
-} ghost
+}
 ```
 
 ### Functions, return and calls
 
-`drill name(param: type, …) cuh type creepin { … } ghost`. The return type is optional; functions live only at the
+C++ style: `type drill name(param: type, …) { … }`. The return type goes first and is optional; functions live only at the
 top level. `cuh value no_bap` returns a value, `cuh no_bap` returns nothing. A call is `name(args)`, as a value or
 as a statement of its own.
 
 ```
-drill add(a: doze, b: fawty) cuh fawty creepin {
+fawty drill add(a: doze, b: fawty) {
     cuh a bump b no_bap
-} ghost
+}
 
 tuck x: fawty post add(1, 2) double_back 3 no_bap
 add(x, x) no_bap
@@ -217,18 +217,18 @@ lowkey everything after lowkey is ignored up to the end of the line
 ### A whole program
 
 ```
-drill run_check(target: doze) cuh line creepin {
+line drill run_check(target: doze) {
     tuck sliding counter: doze post target no_bap
 
-    spot (counter fugazi 0) creepin {
+    spot (counter fugazi 0) {
         counter post counter tuck_in 1 no_bap
         on_the_guys(counter in_tune 0) no_bap
         cuh merch no_bap
-    } ghost pivot creepin {
+    } pivot {
         air_out("empty") no_bap
         cuh woof no_bap
-    } ghost
-} ghost
+    }
+}
 run_check(1) no_bap
 ```
 
@@ -263,7 +263,7 @@ children of a node.
 | Caught by | What |
 |---|---|
 | lexer | an unknown byte (`+`, `=`, `/`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
-| parser | a missing `no_bap`, `:`, type, `post` initialiser, `creepin`, `}` or `ghost`; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block |
+| parser | a missing `no_bap`, `:`, type, `post` initialiser, `{` or `}`; a type without `drill` (`doze x …`); an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block |
 
 ---
 

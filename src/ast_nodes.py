@@ -3,7 +3,7 @@
 The grammar dictates the classes: where a rule says "either / or" there is an abstract
 base with one subclass per alternative, and where it says "this, then that" there is a
 class whose fields are the parts that carry information. Keywords disappear or become
-flags -- `sliding` is a boolean, `creepin { ... } ghost`, `post` and `no_bap` leave
+flags -- `sliding` is a boolean, the braces, `post` and `no_bap` leave
 nothing behind, and an operator keeps both its word and the symbol it stands for.
 
     ASTNode
