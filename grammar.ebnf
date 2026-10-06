@@ -19,6 +19,7 @@
  *                                                  (C++ style: the return type goes before "drill")
  *   "on_the_guys" "air_out"                        assert, print
  *   "no_bap"                                       end of a simple statement
+ *   "pab_on"                                       start of an inverted line
  *   "{" "}" "(" ")" ":" ","                        punctuation, one byte each
  *   ident     letters, digits and _, not starting with a digit, and not a keyword
  *   number    decimal digits, no sign, at most 9223372036854775807 (the fawty maximum)
@@ -30,8 +31,9 @@
  *
  * What this grammar deliberately cannot say (those are semantics, checked in the next
  * stage): that a name is declared before it is used and only once, that only a "sliding"
- * variable is assigned with "post", every type rule and the range of each type (a doze
- * holds 32 bits, a fawty 64), that "cuh" appears only inside a "drill", and that a call
+ * variable is assigned with "post", every type rule, and the range of a value that
+ * involves names (a constant initialiser is already checked against its type by the
+ * parser: doze -2147483648 .. 2147483647, fawty -9223372036854775808 .. 9223372036854775807), that "cuh" appears only inside a "drill", and that a call
  * passes as many arguments as the function has parameters.
  *)
 
@@ -45,7 +47,7 @@ param     ::= type ident
 
 block     ::= "{" statement { statement } "}"
 
-statement ::= decl | assign | call_stmt | if | return | exit | assert | print
+statement ::= decl | assign | call_stmt | if | return | exit | assert | print | inverted
 
 decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
 
@@ -65,6 +67,16 @@ assert    ::= "on_the_guys" "(" expr ")" "no_bap"
 
 print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
 
+(* The unique feature: an inverted line -- a statement written back to front. It opens
+ * with "pab_on" ("no_bap" read backwards) and closes with the end of its line, which the
+ * lexer reports as eol only on a line that pab_on opened.
+ *     pab_on 5 post x doze sliding    is    sliding doze x post 5 no_bap
+ *     pab_on x bump 1 post x          is    x post x bump 1 no_bap
+ *     pab_on merch cuh                is    cuh merch no_bap
+ *     pab_on 0 scat                   is    scat 0 no_bap
+ *)
+inverted  ::= "pab_on" expr ( "post" ident [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
+
 expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
 
 arith     ::= term { ( "bump" | "tuck_in" ) term }
@@ -74,6 +86,34 @@ term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
 factor    ::= number | "merch" | "woof" | call | ident | "(" expr ")"
 
 call      ::= ident "(" [ expr { "," expr } ] ")"
+
+(* ---- Tokens: how the lexer spells the terminals (src/lexer.py) ----------------------- *)
+
+ident     ::= letter { letter | digit }          (* and not one of the keywords above *)
+
+number    ::= digit { digit }                    (* at most 9223372036854775807 *)
+
+string    ::= '"' { string_byte } '"'
+
+eol       ::= newline                            (* only on a line opened by "pab_on" *)
+
+comment   ::= "lowkey" { comment_byte }          (* skipped: never reaches the parser *)
+
+letter    ::= "a" | "b" | ... | "z" | "A" | "B" | ... | "Z" | "_"
+
+digit     ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+
+string_byte  ::= (* any byte except '"', newline and the control bytes below 32 other
+                  * than tab: emoji bytes are allowed *)
+
+comment_byte ::= (* any byte except newline *)
+
+newline   ::= (* the byte 10 *)
+
+(* Spaces, tabs, carriage returns, newlines and comments may stand between any two tokens
+ * and are dropped by the lexer. A keyword, a name or a number ends at the first byte that
+ * cannot continue it, so "tuck_in" is one token and "bump2" is a name.
+ *)
 
 (* Precedence and associativity come out of the shape of the last five rules, with no
  * table anywhere. A comparison binds weaker than arithmetic, so both sides of "in_tune"

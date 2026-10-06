@@ -110,7 +110,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 | `{ … }` | a block | `cuh` | return |
 | `no_bap` | end of a statement | `scat` | exit the program |
 | `on_the_guys( … )` | assert | `air_out( … )` | print |
-| `lowkey` | comment to the end of the line | | |
+| `lowkey` | comment to the end of the line | `pab_on` | inverted line (see below) |
 
 All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
 start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
@@ -133,8 +133,20 @@ fawty big post 9223372036854775808 no_bap
 compilation error: line 1:16: constant 9223372036854775808 does not fit even in fawty (max 9223372036854775807)
 ```
 
-Whether a value fits the 32 bits of a `doze` depends on the type it lands in, so that check belongs to the semantic
-pass of stage 2.
+When a variable is initialised with a **constant expression** (numbers and operators only), the parser works out its
+value and checks it against the declared type: `doze` holds -2147483648 .. 2147483647, `fawty`
+-9223372036854775808 .. 9223372036854775807. A constant division by zero is caught the same way.
+
+```
+doze x post 3000000000 no_bap
+compilation error: line 1:13: doze overflow: the value 3000000000 does not fit in doze (-2147483648 .. 2147483647)
+
+doze y post 2147483647 bump 1 no_bap
+compilation error: line 1:24: doze overflow: the value 2147483648 does not fit in doze (-2147483648 .. 2147483647)
+```
+
+`doze min post 0 tuck_in 2147483648 no_bap` is fine: the value is -2147483648. A value that involves variables
+(`doze y post x bump 1`) is only known once names have types, so that check comes with the semantic pass of stage 2.
 
 ### Constant and mutable variables
 
@@ -196,7 +208,29 @@ fawty x post add(1, 2) double_back 3 no_bap
 add(x, x) no_bap
 ```
 
-### Unique feature: `on_the_guys` — the invariant
+### Unique feature: inverted lines — `pab_on`
+
+On the O you learn to read things backwards. Any declaration, assignment, `cuh` or `scat` can be written **back to
+front**: the line opens with `pab_on` (`no_bap` reversed), the value comes first, and the statement ends where the
+line ends — no `no_bap` needed, and nothing else may follow on that line.
+
+```
+pab_on 5 post counter doze sliding        lowkey = sliding doze counter post 5 no_bap
+pab_on counter bump 1 post counter        lowkey = counter post counter bump 1 no_bap
+pab_on 2 double_back 3 post big fawty     lowkey = fawty big post 2 double_back 3 no_bap
+pab_on 0 scat                             lowkey = scat 0 no_bap
+```
+
+It is the one place where a newline means something: after a `pab_on`, the lexer emits an `eol` token at the end of
+the line, and the parser requires it. An inverted line builds the same node as the straight one, and the dump marks
+it: `Decl counter doze sliding (inverted)`.
+
+```
+pab_on 5 post x doze no_bap
+compilation error: line 1:22: an inverted line ends with the line: unexpected keyword 'no_bap'
+```
+
+### The invariant: `on_the_guys`
 
 `on_the_guys(condition) no_bap` states a contract: if the condition is `woof`, the program panics on the spot.
 (The check itself is generated in stage 3; stage 1 parses it into an `Assert` node.)
@@ -263,7 +297,7 @@ children of a node.
 | Caught by | What |
 |---|---|
 | lexer | an unknown byte (`+`, `=`, `/`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
-| parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block |
+| parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block; a constant initialiser that overflows its type, or divides by zero; an inverted line that does not end with its line or does not end in `post name`, `cuh` or `scat` |
 
 ---
 

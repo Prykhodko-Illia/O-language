@@ -1,0 +1,7 @@
+line drill check(doze n) {
+    spot n fugazi 0 {
+        pab_on merch cuh
+    } pivot {
+        pab_on woof cuh
+    }
+}

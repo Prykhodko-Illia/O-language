@@ -7,7 +7,7 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
   param     ::= type ident
   block     ::= "{" statement { statement } "}"
-  statement ::= decl | assign | call_stmt | if | return | exit | assert | print
+  statement ::= decl | assign | call_stmt | if | return | exit | assert | print | inverted
   decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
   type      ::= "doze" | "fawty" | "line"
   assign    ::= ident "post" expr "no_bap"
@@ -17,6 +17,7 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   exit      ::= "scat" [ expr ] "no_bap"
   assert    ::= "on_the_guys" "(" expr ")" "no_bap"
   print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
+  inverted  ::= "pab_on" expr ( "post" ident [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
   expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
   arith     ::= term { ( "bump" | "tuck_in" ) term }
   term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
@@ -38,9 +39,38 @@ from .ast_nodes import (AssertNode, AssignNode, BinOpNode, BoolNode, CallNode,
 from .errors import CompileError
 
 
+RANGES = {
+    "doze": (-2 ** 31, 2 ** 31 - 1),
+    "fawty": (-2 ** 63, 2 ** 63 - 1),
+}
+
+
+def constant_value(node):
+    """The value of an expression made only of numbers and arithmetic, or None."""
+    if isinstance(node, IntNode):
+        return node.value
+    if isinstance(node, BinOpNode) and node.symbol in "+-*/%":
+        left, right = constant_value(node.left), constant_value(node.right)
+        if left is None or right is None:
+            return None
+        if node.symbol in "/%" and right == 0:
+            raise CompileError(node.line, node.col, f"division by zero in a constant expression ('{node.op}' by 0)")
+        if node.symbol == "+":
+            return left + right
+        if node.symbol == "-":
+            return left - right
+        if node.symbol == "*":
+            return left * right
+        quotient = abs(left) // abs(right) * (1 if (left < 0) == (right < 0) else -1)   # C-style, toward zero
+        return quotient if node.symbol == "/" else left - quotient * right
+    return None
+
+
 def describe(token):
     if token.kind == "eof":
         return "end of file"
+    if token.kind == "eol":
+        return "end of line"
     if token.kind == "keyword":
         return f"keyword '{token.text}'"
     if token.kind == "string":
@@ -162,6 +192,7 @@ class Parser:
                 "scat": self.parse_exit,
                 "on_the_guys": self.parse_assert,
                 "air_out": self.parse_print,
+                "pab_on": self.parse_inverted,
             }.get(token.text)
             if method:
                 return method()
@@ -186,8 +217,64 @@ class Parser:
             raise self.error(f"variable '{name.text}' needs an initial value: 'post' and an expression")
         self.eat()                                             # post
         init = self.parse_expr()
+        self.check_overflow(type_name, init)
         self.expect_end("declaration")
         return DeclNode(name.line, name.col, name.text, type_name, mutable, init)
+
+    def parse_inverted(self):
+        """inverted ::= "pab_on" expr ( "post" ident [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
+
+        A statement written back to front, ending at the end of its line:
+            pab_on 5 post x doze sliding    is    sliding doze x post 5 no_bap
+            pab_on x bump 1 post x          is    x post x bump 1 no_bap
+            pab_on merch cuh                is    cuh merch no_bap
+            pab_on 0 scat                   is    scat 0 no_bap
+        The value comes first, so it is parsed first; the word after it says which
+        statement this was. The node is the same one the straight form builds."""
+        flip = self.eat()                                      # pab_on
+        value = self.parse_expr()
+        if self.at("keyword", "post"):
+            self.eat()
+            name = self.expect("identifier", None, "a variable name after 'post'")
+            if self.at_sub("type"):
+                type_name = self.eat().text
+                mutable = self.at("keyword", "sliding")
+                if mutable:
+                    self.eat()
+                self.check_overflow(type_name, value)
+                node = DeclNode(name.line, name.col, name.text, type_name, mutable, value)
+            else:
+                node = AssignNode(name.line, name.col, name.text, value)
+        elif self.at("keyword", "cuh"):
+            self.eat()
+            node = ReturnNode(flip.line, flip.col, value)
+        elif self.at("keyword", "scat"):
+            self.eat()
+            node = ExitNode(flip.line, flip.col, value)
+        else:
+            raise self.error(f"an inverted line goes 'value post name', 'value cuh' or 'value scat', "
+                             f"found {describe(self.peek())}")
+        if not self.at("eol"):
+            raise self.error(f"an inverted line ends with the line: unexpected {describe(self.peek())}")
+        self.eat()
+        node.inverted = True
+        return node
+
+    def check_overflow(self, type_name, init):
+        """The overflow check the parser can make: when an integer variable is
+        initialised with a constant expression (numbers and operators only), its value
+        is known now, and it must fit the declared type. Expressions with names are
+        checked in stage 2, once names have types."""
+        if type_name not in RANGES:
+            return
+        value = constant_value(init)
+        if value is None:
+            return
+        low, high = RANGES[type_name]
+        if not low <= value <= high:
+            raise CompileError(init.line, init.col,
+                               f"{type_name} overflow: the value {value} does not fit in {type_name} "
+                               f"({low} .. {high})")
 
     def parse_assign_or_call(self):
         """assign ::= ident "post" expr "no_bap"     call_stmt ::= call "no_bap" """

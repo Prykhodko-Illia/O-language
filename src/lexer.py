@@ -10,7 +10,11 @@ checked against the keyword table only once it is complete: `tuck_in` is one wor
 never `tuck` followed by `_in`. The word `lowkey` is not a token at all: it switches
 the machine into COMMENT until the end of the line.
 
-Newlines are plain whitespace: statements end with `no_bap`, not with the line.
+Newlines are plain whitespace: statements end with `no_bap`, not with the line --
+with one exception. `pab_on` (`no_bap` read backwards) starts an inverted line, a
+statement written back to front, and an inverted line ends where the line ends. So
+after a `pab_on` the lexer remembers that the line is inverted, and at the next
+newline (or the end of the file) emits an `eol` token for the parser to see.
 """
 
 from dataclasses import dataclass
@@ -22,7 +26,7 @@ I64_MAX = 9223372036854775807
 
 @dataclass
 class Token:
-    kind: str        # keyword | identifier | number | string | punct | eof
+    kind: str        # keyword | identifier | number | string | punct | eol | eof
     text: str
     line: int
     col: int         # 1-based position of the token's first byte
@@ -43,7 +47,7 @@ KEYWORDS = {
     "spot": "if", "pivot": "else",
     "drill": "function", "cuh": "return", "scat": "exit",
     "on_the_guys": "assert", "air_out": "print",
-    "no_bap": "end",
+    "no_bap": "end", "pab_on": "flip",
 }
 
 COMMENT_WORD = b"lowkey"
@@ -68,6 +72,7 @@ def show_byte(b):
 def lex(data: bytes):
     """Return the list of tokens, ending with one eof token."""
     tokens = []
+    inverted = False                         # inside a line opened by pab_on?
     state, start, start_line, start_col = "START", 0, 1, 1
     line, col = 1, 1
     i = 0
@@ -80,6 +85,9 @@ def lex(data: bytes):
             elif b in (SPACE, TAB, CR):
                 pass
             elif b == NEWLINE:
+                if inverted:                 # the inverted line is over
+                    tokens.append(Token("eol", "", line, col))
+                    inverted = False
                 line, col = line + 1, 0      # col becomes 1 at the bottom of the loop
             elif is_alpha(b):
                 state, start, start_col = "WORD", i, col
@@ -101,6 +109,8 @@ def lex(data: bytes):
                     state = "COMMENT"
                     continue
                 text = word.decode()
+                if text == "pab_on":
+                    inverted = True
                 if text in KEYWORDS:
                     tokens.append(Token("keyword", text, line, start_col, KEYWORDS[text]))
                 else:
@@ -149,5 +159,7 @@ def lex(data: bytes):
         last = tokens[-1]
         width = len(last.text.encode()) + (2 if last.kind == "string" else 0)
         line, col = last.line, last.col + width
+    if inverted:                             # the file ended on an inverted line
+        tokens.append(Token("eol", "", line, col))
     tokens.append(Token("eof", "", line, col))
     return tokens

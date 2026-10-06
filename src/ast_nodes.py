@@ -74,6 +74,15 @@ class Group(ASTNode):
 class StmtNode(ASTNode):
     """A statement: it does something and produces no value."""
 
+    inverted = False                      # written back to front, on a pab_on line
+
+    def dump(self, depth=0):
+        out = super().dump(depth)
+        if self.inverted:                 # mark the first line of this node
+            head, rest = out.split("\n", 1)
+            out = head + " (inverted)\n" + rest
+        return out
+
 
 class ExprNode(ASTNode):
     """An expression: it produces a value."""

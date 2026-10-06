@@ -170,6 +170,36 @@ Below is every prompt I sent, quoted as written, followed by what the AI did.
    New error tests: old_tuck_style, sliding_after_type, sliding_function, nested_typed_function.
 
 
+8. Prompt (I pasted a review of weak spots, written by another AI chat, and asked to fix them):
+   "solve it and update ai_usage.txt
+   Weak spots a strict grader could mark down (Language design, 4 pt)
+   3. The "unique syntax element" is weak. `on_the_guys(...)` is an assert keyword, which is a
+      new word, not new syntax. The PDF's examples are things like "one symbol per line" or
+      "inverted lines".
+   4. Overflow is only checked against the i64 maximum. `doze x post 3000000000 no_bap` parses
+      fine. Leaving the i32 check for stage 2 is defensible, and the README explains it, but a
+      grader could still call it partial.
+   5. Tokens aren't written out in EBNF. `ident`, `number` and `string` are only described in a
+      comment. "Every construct your parser accepts is in the grammar" can be read strictly, and
+      adding three small rules would close that gap."
+
+   What the AI did:
+   - Unique syntax: added inverted lines. A line opened with `pab_on` ("no_bap" backwards) holds
+     a declaration, assignment, cuh or scat written back to front and ends with the line:
+         pab_on 5 post x doze sliding   =   sliding doze x post 5 no_bap
+     The lexer emits an `eol` token at the end of a line opened by pab_on (the only place a
+     newline matters), the parser has a parse_inverted method and grammar rule, and the dump
+     marks the node "(inverted)". on_the_guys stays as the assert statement.
+   - Overflow: when a doze or fawty variable is initialised with a constant expression (numbers
+     and operators only), the parser computes its value and checks it against the type's range
+     (doze -2^31 .. 2^31-1, fawty -2^63 .. 2^63-1); a constant division by zero is an error too.
+     Values involving variables are still left for stage 2.
+   - EBNF: added rules for the tokens: ident, number, string, eol, comment, letter, digit, and
+     what separates tokens.
+   - 13 new tests (3 valid, 10 invalid): 69 in total, all passing. README updated with a section
+     for each change.
+
+
 What I took as it was and what I changed
 ----------------------------------------
 - Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.
