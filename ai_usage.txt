@@ -200,6 +200,22 @@ Below is every prompt I sent, quoted as written, followed by what the AI did.
      for each change.
 
 
+9. Prompt (another review from the other AI chat, pasted as written):
+   "Small
+   3. README typo at line 40: "close it when it.s done" should be "it's".
+   4. The lexer accepts `:` but the grammar never uses it. It's left over from the old `a: doze`
+      parameters: the lexer still turns it into a token and the grammar still lists it as a
+      terminal, but no rule uses it. It does no harm (any `:` is still a syntax error), but
+      strictly the grammar is supposed to list exactly what the parser accepts. The fix is to
+      remove `:` from `PUNCT` in src/lexer.py and from the terminals line in `grammar.ebnf`."
+
+   What the AI did:
+   Fixed the typo in the rap; removed ':' from PUNCT in the lexer and from the terminals in
+   grammar.ebnf, so a ':' is now a lexical error ("unexpected byte ':'"); updated the expected
+   errors of the two tests that use the old colon syntax (old_tuck_style, param_old_colon_style)
+   and listed ':' among the unknown bytes in the README. 69 tests, all passing.
+
+
 What I took as it was and what I changed
 ----------------------------------------
 - Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.

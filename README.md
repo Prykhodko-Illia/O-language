@@ -37,7 +37,7 @@ Parser go deep, recursive descent,
 Every node in the tree know exactly where it went.
 Doze for the small things, fawty for the bread,
 Line tell the truth, merch or woof, like I said.
-Open the brace, do the work, close it when it.s done,
+Open the brace, do the work, close it when it's done,
 Now the only thing I'm scatting is a program that run.
 
 Outro
@@ -296,7 +296,7 @@ children of a node.
 
 | Caught by | What |
 |---|---|
-| lexer | an unknown byte (`+`, `=`, `/`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
+| lexer | an unknown byte (`+`, `=`, `/`, `:`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
 | parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block; a constant initialiser that overflows its type, or divides by zero; an inverted line that does not end with its line or does not end in `post name`, `cuh` or `scat` |
 
 ---

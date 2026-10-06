@@ -20,7 +20,7 @@
  *   "on_the_guys" "air_out"                        assert, print
  *   "no_bap"                                       end of a simple statement
  *   "pab_on"                                       start of an inverted line
- *   "{" "}" "(" ")" ":" ","                        punctuation, one byte each
+ *   "{" "}" "(" ")" ","                            punctuation, one byte each
  *   ident     letters, digits and _, not starting with a digit, and not a keyword
  *   number    decimal digits, no sign, at most 9223372036854775807 (the fawty maximum)
  *   string    bytes between two '"' on one line; only air_out takes one

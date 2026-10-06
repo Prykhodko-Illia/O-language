@@ -52,7 +52,7 @@ KEYWORDS = {
 
 COMMENT_WORD = b"lowkey"
 
-PUNCT = {ord(c): c for c in "{}():,"}
+PUNCT = {ord(c): c for c in "{}(),"}
 
 SPACE, TAB, NEWLINE, CR, QUOTE = 32, 9, 10, 13, ord('"')
 
