@@ -143,5 +143,11 @@ def lex(data: bytes):
         i += 1
         col += 1
 
+    # The end of the file sits right after the last token: when a statement is cut short,
+    # that is the spot where something should have been typed.
+    if tokens:
+        last = tokens[-1]
+        width = len(last.text.encode()) + (2 if last.kind == "string" else 0)
+        line, col = last.line, last.col + width
     tokens.append(Token("eof", "", line, col))
     return tokens
