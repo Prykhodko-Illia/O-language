@@ -1,0 +1,10 @@
+tuck sliding x: fawty post 5 no_bap
+spot x fugazi 0 creepin {
+    spot x in_tune 5 creepin {
+        x post 50 no_bap
+    } ghost pivot creepin {
+        spot merch creepin { x post 1 no_bap } ghost
+    } ghost
+} ghost pivot creepin {
+    scat 1 no_bap
+} ghost

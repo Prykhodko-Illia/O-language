@@ -1,0 +1,6 @@
+tuck sliding x: doze post 7 no_bap
+spot (x fugazi 0) creepin {
+    x post x tuck_in 1 no_bap
+} ghost pivot creepin {
+    x post 100 no_bap
+} ghost

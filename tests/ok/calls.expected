@@ -1,0 +1,17 @@
+Program
+  Function twice returns doze
+    Param n doze
+    Body
+      Return
+        BinOp double_back (*)
+          Var n
+          Int 2
+  Decl x doze tucked
+    BinOp bump (+)
+      Call twice (1 args)
+        Call twice (1 args)
+          Int 3
+      Int 1
+  CallStmt
+    Call twice (1 args)
+      Var x

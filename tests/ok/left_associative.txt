@@ -1,0 +1,2 @@
+tuck x: doze post 10 tuck_in 3 tuck_in 2 no_bap
+tuck y: doze post 100 breakdown 5 scraps 3 no_bap

@@ -1,0 +1,13 @@
+drill run_check(target: doze) cuh line creepin {
+    tuck sliding counter: doze post target no_bap
+
+    spot (counter fugazi 0) creepin {
+        counter post counter tuck_in 1 no_bap
+        on_the_guys(counter in_tune 0) no_bap
+        cuh merch no_bap
+    } ghost pivot creepin {
+        air_out("empty") no_bap
+        cuh woof no_bap
+    } ghost
+} ghost
+run_check(1) no_bap

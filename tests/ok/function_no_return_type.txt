@@ -1,0 +1,4 @@
+drill hello() creepin {
+    air_out("hello") no_bap
+    cuh no_bap
+} ghost

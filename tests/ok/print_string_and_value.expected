@@ -1,0 +1,9 @@
+Program
+  Decl x doze tucked
+    Int 3
+  Print
+    String "x is 🔥"
+  Print
+    BinOp bump (+)
+      Var x
+      Int 1

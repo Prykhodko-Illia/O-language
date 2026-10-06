@@ -1,0 +1,5 @@
+drill twice(n: doze) cuh doze creepin {
+    cuh n double_back 2 no_bap
+} ghost
+tuck x: doze post twice(twice(3)) bump 1 no_bap
+twice(x) no_bap

@@ -1,0 +1,2 @@
+tuck target: doze post 40 no_bap
+on_the_guys(target in_tune 40) no_bap

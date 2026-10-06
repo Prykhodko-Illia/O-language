@@ -1,0 +1,3 @@
+drill outer() creepin {
+    drill inner() creepin { cuh no_bap } ghost
+} ghost
