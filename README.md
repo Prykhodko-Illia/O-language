@@ -1,4 +1,51 @@
-# Cuh — a language that talks like the block
+# O-language
+
+> *Same words from the block, a different kind of business.*
+
+## The lore
+
+He grew up on O-Block, where every word had two meanings and the wrong one could cost you. One day he decided
+the old life was over: no more running, no more ducking, just honest business done right. But he kept the words.
+A `tuck` stopped meaning hiding something and started meaning putting a value away safely. A `drill` stopped being
+trouble and became a routine you call by name. `spot` is still about checking the situation before you move, and
+`on_the_guys` is still a promise, except now the compiler holds you to it. So he wrote it all down as a language,
+called it O-language, and made every program end its sentences properly: `no_bap`.
+
+### The story, in bars
+
+```
+Verse 1
+Back on the O, every corner had a ledger,
+Wrong word, wrong time, and it's over forever.
+Mama said "baby, you smarter than this,"
+So I tucked all the pain and I sliding to fix.
+Traded the block for a desk and a screen,
+Keywords from the street, but the code's running clean.
+Every line that I write got a no_bap at the end,
+'Cause a sentence left open is a problem again.
+
+Hook
+I don't tuck no steel, I tuck my values in,
+I spot what's in_tune, pivot when it's fugazi then,
+I drill a routine, cuh back what's merch,
+On_the_guys every promise, put the word to work.
+
+Verse 2
+Lexer read byte by byte, like I'm counting my blessings,
+No regex, no shortcuts, I'm learning my lessons.
+Parser go deep, recursive descent,
+Every node in the tree know exactly where it went.
+Doze for the small things, fawty for the bread,
+Line tell the truth, merch or woof, like I said.
+Creepin in a block, but I ghost when it's done,
+Now the only thing I'm scatting is a program that run.
+
+Outro
+They said the O only knew how to take,
+Now the O got a compiler, look what we make.
+```
+
+---
 
 The course project for *Languages and Compilers Design*. **Stage 1** is the front end: a hand-written lexer
 (a state machine over bytes, no regular expressions, no `split()`), a recursive-descent parser and an AST.
@@ -50,7 +97,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 
 ### Words
 
-| Cuh | Means | Cuh | Means |
+| O-language | Means | O-language | Means |
 |---|---|---|---|
 | `doze` | i32 | `bump` | `+` |
 | `fawty` | i64 | `tuck_in` | `-` |

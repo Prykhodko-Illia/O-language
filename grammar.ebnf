@@ -1,4 +1,4 @@
-(* Grammar of the language, in EBNF.
+(* Grammar of O-language, in EBNF.
  *
  * Notation:  name ::= right side      a rule
  *            |                        alternatives
