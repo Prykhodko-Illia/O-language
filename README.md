@@ -1,17 +1,24 @@
-# O-language
+# 🏀 O-language 🏙️
 
-> *Same words from the block, a different kind of business.*
+> *Same words from the block, a different kind of business.* 💯
 
-## The lore
+🏀 🧢 👟 🏘️ 🎤 💸 🔥 🏆
+
+**From the courts on 64th to a compiler of his own** — a language that talks like the block and parses like a pro. 🏀
+
+## 🏘️ The lore
 
 He grew up on O-Block, where every word had two meanings and the wrong one could cost you. One day he decided
 the old life was over: no more running, no more ducking, just honest business done right. But he kept the words.
 `sliding` stopped meaning pulling up on somebody and started meaning a value that is allowed to change. A `drill` stopped being
 trouble and became a routine you call by name. `spot` is still about checking the situation before you move, and
 `on_the_guys` is still a promise, except now the compiler holds you to it. So he wrote it all down as a language,
-called it O-language, and made every program end its sentences properly: `no_bap`.
+called it O-language, and made every program end its sentences properly: `no_bap`. 🧢
 
-### The story, in bars
+He still hoops at the court every evening 🏀, but now the playbook is a grammar, the crossover is an inverted line,
+and the only thing he's shooting is clean code. Nothing but net. 🎯
+
+### 🎤 The story, in bars
 
 ```
 Verse 1
@@ -59,7 +66,7 @@ The complete grammar is in [`grammar.ebnf`](grammar.ebnf): everything the parser
 
 ---
 
-## Build and run
+## 🛠️ Build and run
 
 Nothing to build: the compiler is plain Python 3 (3.8 or newer), with no packages to install.
 
@@ -78,7 +85,7 @@ compilation error: line 2:1: expected 'no_bap' to end the declaration, found key
 `line:column` is the 1-based position of the first byte of the token that broke the rule. When the file ends too
 early, it points right after the last token: the place where something should have been typed.
 
-## Run the tests
+## 🧪 Run the tests
 
 ```bash
 ./run_tests.sh
@@ -93,9 +100,9 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 
 ---
 
-## The language
+## 📜 The language
 
-### Words
+### 🗣️ Words
 
 | O-language | Means | O-language | Means |
 |---|---|---|---|
@@ -115,7 +122,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
 start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
 
-### Types and constants
+### 💸 Types and constants
 
 Three types: `doze` (32-bit integer), `fawty` (64-bit integer) and `line` (boolean, `merch` or `woof`).
 A number is decimal digits with no sign; write `0 tuck_in 5` for -5.
@@ -148,7 +155,7 @@ compilation error: line 1:24: doze overflow: the value 2147483648 does not fit i
 `doze min post 0 tuck_in 2147483648 no_bap` is fine: the value is -2147483648. A value that involves variables
 (`doze y post x bump 1`) is only known once names have types, so that check comes with the semantic pass of stage 2.
 
-### Constant and mutable variables
+### 🔒 Constant and mutable variables
 
 C++ style: `type name post value no_bap` declares a variable. Without a marker it is **tucked** (immutable); with
 `sliding` before the type it is mutable. The initial value is mandatory.
@@ -158,7 +165,7 @@ doze limit post 10 no_bap              lowkey tucked: never changes
 sliding fawty counter post 0 no_bap    lowkey sliding: can be posted again
 ```
 
-### Assignment
+### 📮 Assignment
 
 `name post expression no_bap`:
 
@@ -166,7 +173,7 @@ sliding fawty counter post 0 no_bap    lowkey sliding: can be posted again
 counter post counter bump 1 no_bap
 ```
 
-### Expressions
+### 🧮 Expressions
 
 `double_back`, `breakdown` and `scraps` bind tighter than `bump` and `tuck_in`; operators of equal precedence group from
 left to right; `( )` groups. A comparison (`in_tune`, `fugazi`) binds weakest and gives a `line`; only one per
@@ -180,7 +187,7 @@ line d post a fugazi b no_bap                      lowkey a != b
 line e post (a in_tune 14) in_tune merch no_bap
 ```
 
-### if / else
+### 👀 if / else
 
 `spot condition { statements }`, optionally followed by `pivot { statements }`.
 Each block holds at least one statement. Blocks nest.
@@ -193,7 +200,7 @@ spot (counter fugazi 0) {
 }
 ```
 
-### Functions, return and calls
+### 🏀 Functions, return and calls
 
 C++ style: `type drill name(type param, …) { … }`. The return type goes first and is optional; functions live only at the
 top level. `cuh value no_bap` returns a value, `cuh no_bap` returns nothing. A call is `name(args)`, as a value or
@@ -208,7 +215,7 @@ fawty x post add(1, 2) double_back 3 no_bap
 add(x, x) no_bap
 ```
 
-### Unique feature: inverted lines — `pab_on`
+### 🔄 Unique feature: inverted lines — `pab_on`
 
 On the O you learn to read things backwards. Any declaration, assignment, `cuh` or `scat` can be written **back to
 front**: the line opens with `pab_on` (`no_bap` reversed), the value comes first, and the statement ends where the
@@ -230,7 +237,7 @@ pab_on 5 post x doze no_bap
 compilation error: line 1:22: an inverted line ends with the line: unexpected keyword 'no_bap'
 ```
 
-### The invariant: `on_the_guys`
+### 🤞 The invariant: `on_the_guys`
 
 `on_the_guys(condition) no_bap` states a contract: if the condition is `woof`, the program panics on the spot.
 (The check itself is generated in stage 3; stage 1 parses it into an `Assert` node.)
@@ -239,7 +246,7 @@ compilation error: line 1:22: an inverted line ends with the line: unexpected ke
 on_the_guys(target in_tune 40) no_bap
 ```
 
-### Print, exit and comments
+### 📢 Print, exit and comments
 
 ```
 air_out("hello 🔥") no_bap      lowkey a string: any bytes on one line, emojis included
@@ -248,7 +255,7 @@ scat 0 no_bap                   lowkey exit the program, with or without a value
 lowkey everything after lowkey is ignored up to the end of the line
 ```
 
-### A whole program
+### 🏆 A whole program
 
 ```
 line drill run_check(doze target) {
@@ -292,7 +299,7 @@ Every node shows its fields: the declared type and `sliding` / `tucked` for a de
 of each operator, the return type of a function. `Cond`, `Then`, `Else` and `Body` are headings that group the
 children of a node.
 
-### Errors the front end catches
+### 🚨 Errors the front end catches
 
 | Caught by | What |
 |---|---|
@@ -301,7 +308,7 @@ children of a node.
 
 ---
 
-## What's in the repo
+## 🗂️ What's in the repo
 
 ```
 compiler.py       entry point: --ast, --tokens, error reporting
@@ -315,3 +322,7 @@ tests/err/        invalid programs and their expected error line
 run_tests.sh      runs every test and reports PASS / FAIL
 ai_usage.txt      how AI was used for this stage
 ```
+
+---
+
+> 🏀 *Run it back, cuh: write it clean, close your blocks, end every line with `no_bap`.* 👟💯

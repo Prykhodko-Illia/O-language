@@ -233,6 +233,17 @@ SESSION 2 - building the stage
    and listed ':' among the unknown bytes in the README. 69 tests, all passing.
 
 
+10. Prompt:
+   "add more emojis to readme with basketball and other hood things
+   record this prompt in your session (session 2 ai_usage)
+   I will push by myself"
+
+   What the AI did:
+   Added emojis to the README only: a basketball / block emoji line and a tagline under the title,
+   one emoji on every section heading, two lines about the court in the lore, and a closing line.
+   No code blocks, examples or code were changed; 69 tests still pass. Recorded this prompt here.
+
+
 ==================================
 SESSION 3 - review against the PDF
 ==================================
