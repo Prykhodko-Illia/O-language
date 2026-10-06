@@ -13,8 +13,16 @@ The language design (every keyword, the operators, the statements, the unique fe
 extras) is mine: I wrote it and sent it to the AI. The AI checked it against the PDF, settled the
 points that were ambiguous (listed below), and wrote the implementation, tests and documentation.
 
-Below is every prompt I sent, quoted as written, followed by what the AI did.
+I used two separate Claude Code sessions:
+  - Session 1 built everything: the language, the lexer, the parser, the AST, the tests and the docs.
+  - Session 2 only reviewed the work against the PDF. I pasted its findings into session 1, which
+    made the fixes (prompts 8 and 9 there).
 
+Below is every prompt I sent in each session, quoted as written, followed by what the AI did.
+
+
+SESSION 1 - building the stage
+==============================
 
 1. Prompt:
    [attached w04-project-stage1.pdf]
@@ -216,23 +224,45 @@ Below is every prompt I sent, quoted as written, followed by what the AI did.
    and listed ':' among the unknown bytes in the README. 69 tests, all passing.
 
 
-10. Review prompts (a second Claude Code session, used only to check the work against the PDF):
+SESSION 2 - review against the PDF
+==================================
+A separate Claude Code session that read the PDF and the repository, ran the tests and listed
+what did not yet follow the PDF. It did not write the code; I took its findings to session 1.
+
+1. Prompt:
+   [attached w04-project-stage1.pdf]
    "hello, look at this file and strictly check whether everyhing is followed well"
-   "check it now - ignore emojis and 'recomendations'"
-   "now, please"
 
    What the AI did:
-   Read the PDF and the repository, ran the tests and listed what did not yet follow the PDF.
-   The review findings are the text quoted in prompts 8 and 9. In this session it changed only
-   this file: it wrote this entry and filled in the two lines at the end.
+   Checked every requirement of the PDF against the repository and ran the tests. Reported: no
+   remote / pull request yet, placeholders left in ai_usage.txt, and weak spots in the design
+   (no emojis, the unique feature, the overflow check, token rules missing from the EBNF).
+   I pasted points 3-5 into session 1 (its prompt 8).
+
+2. Prompt:
+   "check it now - ignore emojis and 'recomendations'"
+
+   What the AI did:
+   Re-checked after session 1's changes (inverted lines, overflow checks, token rules): 69 tests
+   passing. Reported what was still left: the placeholders in ai_usage.txt, nothing pushed yet,
+   the README typo and the unused ':' token. I pasted the last two into session 1 (its prompt 9).
+
+3. Prompts:
+   "now, please"
+   "please sonehow separate this session for the other"
+
+   What the AI did:
+   Session 1 had already fixed the typo and the ':' token, so the only file this session changed
+   is this one. It filled in the two lines at the end and split this log into the two sessions.
 
 
 What I took as it was and what I changed
 ----------------------------------------
 - Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.
-- Mine: the whole language design (prompts 3, 5, 6 and 7), the name and the lore idea (prompt 4).
+- Mine: the whole language design (session 1, prompts 3, 5, 6 and 7), the name and the lore idea
+  (session 1, prompt 4).
 - Changed by me after review: nothing; the code, tests and docs are submitted as the AI
-  wrote them, with the changes I asked for in prompts 5-9.
+  wrote them, with the changes I asked for in session 1, prompts 5-9.
 
 Chat transcript: there is no shareable link (Claude Code desktop sessions). Every prompt I
-sent is quoted above exactly as I wrote it, in order.
+sent in both sessions is quoted above exactly as I wrote it, in order.
