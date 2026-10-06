@@ -183,12 +183,12 @@ spot (counter fugazi 0) {
 
 ### Functions, return and calls
 
-C++ style: `type drill name(param: type, …) { … }`. The return type goes first and is optional; functions live only at the
+C++ style: `type drill name(type param, …) { … }`. The return type goes first and is optional; functions live only at the
 top level. `cuh value no_bap` returns a value, `cuh no_bap` returns nothing. A call is `name(args)`, as a value or
 as a statement of its own.
 
 ```
-fawty drill add(a: doze, b: fawty) {
+fawty drill add(doze a, fawty b) {
     cuh a bump b no_bap
 }
 
@@ -217,7 +217,7 @@ lowkey everything after lowkey is ignored up to the end of the line
 ### A whole program
 
 ```
-line drill run_check(target: doze) {
+line drill run_check(doze target) {
     tuck sliding counter: doze post target no_bap
 
     spot (counter fugazi 0) {

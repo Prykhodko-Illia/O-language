@@ -149,10 +149,19 @@ Below is every prompt I sent, quoted as written, followed by what the AI did.
    this file; added tests for the new error cases (53 tests, all passing).
 
 
+6. Prompt:
+   "yes make params c++ style too"
+
+   What the AI did:
+   Changed the parameter rule to  param ::= type ident  (e.g.  fawty drill add(doze a, fawty b) { ... }),
+   in the parser, grammar.ebnf, the tests and the README; the old "a: doze" form is now an error test
+   (param_old_colon_style), and a type without a name is another (param_without_name). 54 tests pass.
+
+
 What I took as it was and what I changed
 ----------------------------------------
 - Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.
-- Mine: the whole language design (prompts 3 and 5), the name and the lore idea (prompt 4).
+- Mine: the whole language design (prompts 3, 5 and 6), the name and the lore idea (prompt 4).
 - Changed by me after review: [fill in anything you edit before submitting]
 
 Chat transcript: [add the link to the Claude Code session / exported transcript here]

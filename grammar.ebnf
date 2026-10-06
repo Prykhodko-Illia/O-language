@@ -41,7 +41,7 @@ item      ::= function | statement
 
 function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
 
-param     ::= ident ":" type
+param     ::= type ident
 
 block     ::= "{" statement { statement } "}"
 

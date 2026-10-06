@@ -5,7 +5,7 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   program   ::= { item }
   item      ::= function | statement
   function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
-  param     ::= ident ":" type
+  param     ::= type ident
   block     ::= "{" statement { statement } "}"
   statement ::= decl | assign | call_stmt | if | return | exit | assert | print
   decl      ::= "tuck" [ "sliding" ] ident ":" type "post" expr "no_bap"
@@ -119,10 +119,10 @@ class Parser:
         return FunctionNode(name.line, name.col, name.text, params, return_type, body)
 
     def parse_param(self):
-        """param ::= ident ":" type"""
-        name = self.expect("identifier", None, "a parameter name")
-        self.expect("punct", ":", f"':' after the parameter '{name.text}'")
-        return ParamNode(name.line, name.col, name.text, self.parse_type())
+        """param ::= type ident"""
+        type_name = self.parse_type()
+        name = self.expect("identifier", None, f"a parameter name after '{type_name}'")
+        return ParamNode(name.line, name.col, name.text, type_name)
 
     def parse_type(self):
         """type ::= "doze" | "fawty" | "line" """

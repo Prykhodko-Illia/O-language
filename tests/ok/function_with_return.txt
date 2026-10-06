@@ -1,3 +1,3 @@
-fawty drill add(a: doze, b: fawty) {
+fawty drill add(doze a, fawty b) {
     cuh a bump b no_bap
 }
