@@ -1,0 +1,236 @@
+# Cuh — a language that talks like the block
+
+The course project for *Languages and Compilers Design*. **Stage 1** is the front end: a hand-written lexer
+(a state machine over bytes, no regular expressions, no `split()`), a recursive-descent parser and an AST.
+Semantic checks and code generation are stages 2 and 3.
+
+```
+source bytes ──lexer──► tokens ──parser──► AST ──dump──► --ast output
+```
+
+The complete grammar is in [`grammar.ebnf`](grammar.ebnf): everything the parser accepts is there, and nothing else.
+
+---
+
+## Build and run
+
+Nothing to build: the compiler is plain Python 3 (3.8 or newer), with no packages to install.
+
+```bash
+python3 compiler.py --ast program.txt       # print the AST, indented by depth
+python3 compiler.py --tokens program.txt    # print the token stream (debugging)
+```
+
+On success the tree goes to stdout, with exit code 0. On a lexical or syntax error you get one line on stderr,
+exit code 1, and no output:
+
+```
+compilation error: line 2:1: expected 'no_bap' to end the declaration, found keyword 'tuck'
+```
+
+`line:column` is the 1-based position of the first byte of the token that broke the rule. When the file ends too
+early, it points right after the last token: the place where something should have been typed.
+
+## Run the tests
+
+```bash
+./run_tests.sh
+```
+
+- `tests/ok/NAME.txt` must parse, and its `--ast` dump must equal `tests/ok/NAME.expected`.
+- `tests/err/NAME.txt` must fail with a non-zero exit code and no output, and its error line must equal
+  `tests/err/NAME.expected`.
+
+Each test prints `PASS` or `FAIL` (with the difference), then a summary; the script exits non-zero if any test
+failed. Every test is named after what it covers: `if_else_nested.txt`, `unclosed_block.txt`.
+
+---
+
+## The language
+
+### Words
+
+| Cuh | Means | Cuh | Means |
+|---|---|---|---|
+| `doze` | i32 | `bump` | `+` |
+| `fawty` | i64 | `tuck_in` | `-` |
+| `line` | bool | `double_back` | `*` |
+| `merch` / `woof` | true / false | `breakdown` | `/` |
+| `tuck` | declare | `scraps` | `%` |
+| `sliding` | mutable | `in_tune` | `==` |
+| `post` | assign / initialise | `fugazi` | `!=` |
+| `spot` / `pivot` | if / else | `drill` | function |
+| `creepin { … } ghost` | a block | `cuh` | return (and the return type) |
+| `no_bap` | end of a statement | `scat` | exit the program |
+| `on_the_guys( … )` | assert | `air_out( … )` | print |
+| `lowkey` | comment to the end of the line | | |
+
+All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
+start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
+
+### Types and constants
+
+Three types: `doze` (32-bit integer), `fawty` (64-bit integer) and `line` (boolean, `merch` or `woof`).
+A number is decimal digits with no sign; write `0 tuck_in 5` for -5.
+
+```
+tuck small: doze post 42 no_bap
+tuck big: fawty post 9223372036854775807 no_bap
+tuck ok: line post merch no_bap
+```
+
+**Overflow check:** a number above `9223372036854775807` (the fawty maximum) is rejected by the lexer:
+
+```
+tuck big: fawty post 9223372036854775808 no_bap
+compilation error: line 1:22: constant 9223372036854775808 does not fit even in fawty (max 9223372036854775807)
+```
+
+Whether a value fits the 32 bits of a `doze` depends on the type it lands in, so that check belongs to the semantic
+pass of stage 2.
+
+### Constant and mutable variables
+
+`tuck name: type post value no_bap` declares a variable. Without a marker it is **tucked** (immutable); with
+`sliding` before the name it is mutable. The initial value is mandatory.
+
+```
+tuck limit: doze post 10 no_bap              lowkey tucked: never changes
+tuck sliding counter: fawty post 0 no_bap    lowkey sliding: can be posted again
+```
+
+### Assignment
+
+`name post expression no_bap`:
+
+```
+counter post counter bump 1 no_bap
+```
+
+### Expressions
+
+`double_back`, `breakdown` and `scraps` bind tighter than `bump` and `tuck_in`; operators of equal precedence group from
+left to right; `( )` groups. A comparison (`in_tune`, `fugazi`) binds weakest and gives a `line`; only one per
+expression, unless you group with `( )`.
+
+```
+tuck a: doze post 2 bump 3 double_back 4 no_bap          lowkey 2 + (3 * 4) = 14
+tuck b: doze post 10 tuck_in 3 tuck_in 2 no_bap          lowkey (10 - 3) - 2 = 5
+tuck c: doze post (2 bump 3) double_back 4 no_bap        lowkey 20
+tuck d: line post a fugazi b no_bap                      lowkey a != b
+tuck e: line post (a in_tune 14) in_tune merch no_bap
+```
+
+### if / else
+
+`spot condition creepin { statements } ghost`, optionally followed by `pivot creepin { statements } ghost`.
+Each block holds at least one statement. Blocks nest.
+
+```
+spot (counter fugazi 0) creepin {
+    counter post counter tuck_in 1 no_bap
+} ghost pivot creepin {
+    air_out("done") no_bap
+} ghost
+```
+
+### Functions, return and calls
+
+`drill name(param: type, …) cuh type creepin { … } ghost`. The return type is optional; functions live only at the
+top level. `cuh value no_bap` returns a value, `cuh no_bap` returns nothing. A call is `name(args)`, as a value or
+as a statement of its own.
+
+```
+drill add(a: doze, b: fawty) cuh fawty creepin {
+    cuh a bump b no_bap
+} ghost
+
+tuck x: fawty post add(1, 2) double_back 3 no_bap
+add(x, x) no_bap
+```
+
+### Unique feature: `on_the_guys` — the invariant
+
+`on_the_guys(condition) no_bap` states a contract: if the condition is `woof`, the program panics on the spot.
+(The check itself is generated in stage 3; stage 1 parses it into an `Assert` node.)
+
+```
+on_the_guys(target in_tune 40) no_bap
+```
+
+### Print, exit and comments
+
+```
+air_out("hello 🔥") no_bap      lowkey a string: any bytes on one line, emojis included
+air_out(x bump 1) no_bap        lowkey or a value
+scat 0 no_bap                   lowkey exit the program, with or without a value
+lowkey everything after lowkey is ignored up to the end of the line
+```
+
+### A whole program
+
+```
+drill run_check(target: doze) cuh line creepin {
+    tuck sliding counter: doze post target no_bap
+
+    spot (counter fugazi 0) creepin {
+        counter post counter tuck_in 1 no_bap
+        on_the_guys(counter in_tune 0) no_bap
+        cuh merch no_bap
+    } ghost pivot creepin {
+        air_out("empty") no_bap
+        cuh woof no_bap
+    } ghost
+} ghost
+run_check(1) no_bap
+```
+
+`python3 compiler.py --ast` prints (start):
+
+```
+Program
+  Function run_check returns line
+    Param target doze
+    Body
+      Decl counter doze sliding
+        Var target
+      If with pivot
+        Cond
+          BinOp fugazi (!=)
+            Var counter
+            Int 0
+        Then
+          Assign counter
+            BinOp tuck_in (-)
+              Var counter
+              Int 1
+          ...
+```
+
+Every node shows its fields: the declared type and `sliding` / `tucked` for a declaration, the word and the symbol
+of each operator, the return type of a function. `Cond`, `Then`, `Else` and `Body` are headings that group the
+children of a node.
+
+### Errors the front end catches
+
+| Caught by | What |
+|---|---|
+| lexer | an unknown byte (`+`, `=`, `/`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
+| parser | a missing `no_bap`, `:`, type, `post` initialiser, `creepin`, `}` or `ghost`; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block |
+
+---
+
+## What's in the repo
+
+```
+compiler.py       entry point: --ast, --tokens, error reporting
+grammar.ebnf      the grammar in EBNF
+src/lexer.py      Token and lex(): byte-by-byte state machine (START, WORD, NUMBER, STRING, COMMENT)
+src/parser.py     Parser: recursive descent, peek()/eat(), one method per grammar rule
+src/ast_nodes.py  ASTNode, ProgramNode, FunctionNode, StmtNode + statements, ExprNode + expressions, dump()
+src/errors.py     CompileError with line and column
+tests/ok/         valid programs and their expected AST dump
+tests/err/        invalid programs and their expected error line
+run_tests.sh      runs every test and reports PASS / FAIL
+ai_usage.txt      how AI was used for this stage
+```
