@@ -14,7 +14,7 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   type      ::= "doze" | "fawty" | "line" | squad_name
   assign    ::= place "post" expr "no_bap"
   place     ::= ident { "." ident }
-  call_stmt ::= ( call | place args ) "no_bap"
+  call_stmt ::= place args "no_bap"
   if        ::= "spot" expr block [ "pivot" block ]
   return    ::= "cuh" [ expr ] "no_bap"
   exit      ::= "scat" [ expr ] "no_bap"
@@ -24,18 +24,21 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
   arith     ::= term { ( "bump" | "tuck_in" ) term }
   term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
-  factor    ::= number | "merch" | "woof" | read | literal | call | place [ args ] | "(" expr ")"
+  factor    ::= number | "merch" | "woof" | read | literal | place [ args ] | "(" expr ")"
   literal   ::= squad_name "{" expr { "," expr } "}"
   read      ::= "finna_hear" "(" ")"
-  call      ::= ident args
   args      ::= "(" [ expr { "," expr } ] ")"
 
 peek() returns the current token, eat() returns it and moves on. One token of
 look-ahead decides every choice. Two pairs of rules share their first token, and in
 both the parser eats that token first and then decides by the one after it, so it
 still never looks more than one token ahead:
-  - a type starts both a function (`doze drill f(...)`) and a declaration (`doze x post 1`);
-  - a name starts both an assignment (`x post ...`) and a call (`f(...)`).
+  - a type starts both a function (`doze drill f(...)`) and a declaration (`doze x post 1`),
+    and inside a squad both a member function and a field;
+  - a place starts both an assignment (`c.r post ...`) and a call (`f(...)`, `c.grow(...)`).
+
+A place with args is a call: parse_call when it has no '.' (a CallNode, of a drill or of
+a member function on the same object), parse_member_call when it has one.
 
 A squad's name is an identifier, so the parser keeps the names of the squads declared so
 far: an identifier among them is a type -- `Point p post ...` is a declaration, and
@@ -354,7 +357,7 @@ class Parser:
                                f"({low} .. {high})")
 
     def parse_assign_or_call(self):
-        """assign ::= place "post" expr "no_bap"     call_stmt ::= ( call | place args ) "no_bap" """
+        """assign ::= place "post" expr "no_bap"     call_stmt ::= place args "no_bap" """
         name = self.eat()
         links = self.parse_links()
         if self.at("keyword", "post"):
@@ -452,7 +455,7 @@ class Parser:
         return node
 
     def parse_factor(self):
-        """factor ::= number | "merch" | "woof" | read | literal | call | place [ args ] | "(" expr ")" """
+        """factor ::= number | "merch" | "woof" | read | literal | place [ args ] | "(" expr ")" """
         token = self.peek()
         if token.kind == "number":
             self.eat()
@@ -512,7 +515,7 @@ class Parser:
         return LiteralNode(name.line, name.col, name.text, values)
 
     def parse_call(self, name):
-        """call ::= ident args   -- the name is already eaten"""
+        """place args with no '.': a call of a drill -- the name is already eaten"""
         return CallNode(name.line, name.col, name.text, self.parse_args(name.text))
 
     def parse_member_call(self, name, links):

@@ -190,8 +190,8 @@ start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement end
 
 ### 💸 Types and constants
 
-Three types: `doze` (32-bit integer), `fawty` (64-bit integer) and `line` (boolean, `merch` or `woof`).
-A number is decimal digits with no sign; write `0 tuck_in 5` for -5.
+Three built-in types: `doze` (32-bit integer), `fawty` (64-bit integer) and `line` (boolean, `merch` or `woof`)
+-- and on top of them, your own squads (below). A number is decimal digits with no sign; write `0 tuck_in 5` for -5.
 
 ```
 doze small post 42 no_bap
@@ -451,6 +451,50 @@ checked when it runs. A broken one prints one line -- where, and what -- and end
 
 ### 🏆 A whole program
 
+Squads, a member function that changes its object, a drill that makes one, input and output:
+
+```
+squad Point {
+    doze x no_bap
+    sliding doze y no_bap
+
+    doze drill d2() {
+        cuh x double_back x bump y double_back y no_bap
+    }
+    drill lift(doze dy) {                lowkey writes a field: mutating
+        y post y bump dy no_bap
+    }
+}
+
+squad Circle {
+    sliding Point center no_bap
+    fawty r no_bap
+}
+
+Point drill origin() {
+    cuh Point{0, 0} no_bap
+}
+
+sliding Circle c post Circle{Point{finna_hear(), finna_hear()}, 5} no_bap
+c.center.lift(1) no_bap                  lowkey c and center are sliding: ok
+Point o post origin() no_bap
+air_out(c) no_bap
+air_out(o.x in_tune 0) no_bap
+scat c.center.d2() no_bap
+```
+
+With `3 4` on the input (it is `tests/ok/whole_program_demo`):
+
+```
+Circle{center: Point{x: 3, y: 5}, r: 5}
+true
+Program exit with result 34
+```
+
+### 🌳 The tree: `--ast`
+
+The Stage 1 example, a drill with a `spot` and a `pivot`:
+
 ```
 line drill run_check(doze target) {
     sliding doze counter post target no_bap
@@ -489,9 +533,70 @@ Program
           ...
 ```
 
-Every node shows its fields: the declared type and `sliding` / `tucked` for a declaration, the word and the symbol
-of each operator, the return type of a function. `Cond`, `Then`, `Else` and `Body` are headings that group the
-children of a node.
+The squads and member functions of the Counter above print like this -- the mutability of every field, the
+squad of every member function, the number of arguments of a call, and whether a chain ends in a member call:
+
+```
+Program
+  Squad Counter
+    Field n doze sliding
+    Field step doze tucked
+    Member tick of Counter returns nothing
+      Body
+        Assign n
+          BinOp bump (+)
+            Var n
+            Var step
+    Member twice of Counter returns nothing
+      Body
+        CallStmt
+          Call tick (0 args)
+        ...
+  Decl c Counter sliding
+    Literal Counter (2 values)
+      Int 0
+      Int 5
+  CallStmt
+    Chain c ends in member call twice (0 args)
+      Var c
+```
+
+Every node shows its fields: the declared type and `sliding` / `tucked` for a declaration or a field, the word and
+the symbol of each operator, the parameters and the result type of a drill (`returns nothing` when it has none).
+`Cond`, `Then`, `Else` and `Body` are headings that group the children of a node. `--ast-checked` prints the same
+tree after the semantic pass, with what it found: the type of every expression, the value of a constant, where each
+name was declared (or that it is a field of the object), the field indices of a chain, and whether a member function
+is mutating:
+
+```
+    Member tick of Counter returns nothing  (mutating: changes its object)
+      Body
+        Assign n  (a field of the object)  (field indices [0])
+          BinOp bump (+)  : doze
+            Var n  : doze  (a field of the object)  (field indices [0])
+            Var step  : doze  (a field of the object)  (field indices [1])
+```
+
+### 🔧 How it becomes LLVM IR
+
+The code generator builds everything through the `llvmlite.ir` builder; `str(module)` is the only IR text the
+compiler writes. What each construct becomes:
+
+| In O-language | In the IR |
+|---|---|
+| `doze`, `fawty`, `line` | `i32`, `i64`, `i1`; a `doze` going where a `fawty` is expected gets a `sext` |
+| a variable, a parameter | an `alloca` in the entry block, `store` and `load` |
+| a constant (as the semantic pass computed it) | one `ir.Constant` of the type it lands in |
+| `bump`, `tuck_in`, `double_back` | `llvm.sadd/ssub/smul.with.overflow` and a branch to a block that reports and calls `exit(1)` |
+| `spot` / `pivot` | basic blocks `then`, `else`, `merge` and a `cbranch` on the `i1` condition |
+| a drill `f` | `@"drill.f"`: a name with a `.` cannot clash with `main` or `printf`. Every drill is declared before any body is built, so a call may go to a drill below |
+| `squad Point` | an identified struct type `%"squad.Point" = type {i32, i32}`; an object is an `alloca` of it |
+| `p.x`, `c.center.x` | one `gep` with indices `0`, then each field's index from the semantic pass's squad table |
+| `Point{3, 4}` | `insertvalue` into an `undef` of the struct type, field by field |
+| a member function `lift` of `Point` | `@"Point.lift"(%"squad.Point"* this, …)`; a call passes the object's address, or `this` on |
+| `air_out` of an object | a walk over the squad's field table: one `gep`, `load` and `printf` per field |
+| `finna_hear()` | `scanf("%d")` into a slot; `printf`, `scanf` and `exit` are declared in the module, and clang links them |
+| `scat v` | `printf("Program exit with result …")`, then `exit(0)` |
 
 ### 📏 Rules the semantic pass enforces
 
@@ -586,8 +691,9 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 |---|---|
 | lexer | an unknown byte (`+`, `=`, `/`, `:`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
 | parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block; a constant initialiser that overflows its type, or divides by zero; an inverted line that does not end with its line or does not end in `post name`, `cuh` or `scat` |
-| parser (squads) | a squad inside a block or without fields; a field with a `post` value; a squad's name not followed by `{`; a type that is not a squad declared above |
-| semantic pass | every rule of the tables above: a name not declared or declared twice, a post to a tucked variable or through a tucked chain, a type that does not fit, a wrong call, a misplaced or missing `cuh`, an unknown field, a wrong literal, a squad that contains itself, a constant that overflows or divides by zero |
+| parser (squads) | a squad inside a block or without fields; a field with a `post` value; a field after a member function; a `sliding` member function; a squad's name not followed by `{`; a type that is not a squad declared above; `finna_hear` with arguments |
+| semantic pass | every rule of the tables above: a name not declared or declared twice, a post to a tucked variable or through a tucked chain, a type that does not fit, a wrong number or type of arguments, a misplaced or missing `cuh`, an unknown field or member function, a wrong literal, a squad that contains itself, a mutating member function called on a tucked object, a constant that overflows or divides by zero |
+| run time | see 💥 above: an overflow, a division by 0, a broken `on_the_guys`, no number for `finna_hear` -- one line, exit code 1 |
 
 ---
 
@@ -608,7 +714,8 @@ run_tests.sh      compiles and runs every test and reports PASS / FAIL
 full_compiler.sh  source -> output.ll -> output.o -> program, and runs it
 githooks/         pre-push: the tests before every push (git config core.hooksPath githooks)
 .github/workflows tests.yml: the tests and a native build on every push and pull request
-ai_usage.txt      how AI was used for this stage
+ai_usage.txt      how AI was used for Stage 1
+ai_usage_2.txt    how AI was used for Stage 2
 ```
 
 ---
