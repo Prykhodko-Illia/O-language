@@ -30,6 +30,7 @@ nothing behind, and an operator keeps both its word and the symbol it stands for
         +-- VarNode        name
         +-- FieldNode      name, links: [Link]    -- c.center.x: the variable, then each field
         +-- LiteralNode    type_name, values: [ExprNode]   -- Point{3, 4}: one value per field
+        +-- ReadNode                          -- finna_hear(): one doze from the standard input
         +-- IntNode        value
         +-- BoolNode       value (True / False)
         +-- StringNode     value   (only as the argument of air_out)
@@ -482,6 +483,14 @@ class LiteralNode(ExprNode):
 
     def accept(self, visitor):
         return visitor.visit_literal(self)
+
+
+class ReadNode(ExprNode):
+    def label(self):
+        return "Read finna_hear"
+
+    def accept(self, visitor):
+        return visitor.visit_read(self)
 
 
 class IntNode(ExprNode):

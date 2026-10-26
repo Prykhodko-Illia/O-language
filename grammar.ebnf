@@ -21,6 +21,7 @@
  *   "no_bap"                                       end of a simple statement
  *   "pab_on"                                       start of an inverted line
  *   "squad"                                        a structure: a named type with fields
+ *   "finna_hear"                                   read one integer from standard input
  *   "{" "}" "(" ")" "," "."                        punctuation, one byte each
  *   ident     letters, digits and _, not starting with a digit, and not a keyword
  *   number    decimal digits, no sign, at most 9223372036854775807 (the fawty maximum)
@@ -97,7 +98,9 @@ arith     ::= term { ( "bump" | "tuck_in" ) term }
 
 term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
 
-factor    ::= number | "merch" | "woof" | literal | call | place [ args ] | "(" expr ")"
+factor    ::= number | "merch" | "woof" | read | literal | call | place [ args ] | "(" expr ")"
+
+read      ::= "finna_hear" "(" ")"               (* one doze from the standard input *)
 
 literal   ::= squad_name "{" expr { "," expr } "}"   (* one value per field, in order *)
 

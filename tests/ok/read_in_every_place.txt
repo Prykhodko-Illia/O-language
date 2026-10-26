@@ -1,0 +1,11 @@
+doze drill twice(doze n) {
+    cuh n double_back 2 no_bap
+}
+sliding fawty total post finna_hear() no_bap
+total post total bump twice(finna_hear()) no_bap
+spot finna_hear() in_tune 0 {
+    air_out("the third one was zero") no_bap
+}
+air_out(total) no_bap
+pab_on finna_hear() bump 1 post last doze
+air_out(last) no_bap

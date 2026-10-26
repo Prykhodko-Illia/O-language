@@ -24,8 +24,9 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
   arith     ::= term { ( "bump" | "tuck_in" ) term }
   term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
-  factor    ::= number | "merch" | "woof" | literal | call | place [ args ] | "(" expr ")"
+  factor    ::= number | "merch" | "woof" | read | literal | call | place [ args ] | "(" expr ")"
   literal   ::= squad_name "{" expr { "," expr } "}"
+  read      ::= "finna_hear" "(" ")"
   call      ::= ident args
   args      ::= "(" [ expr { "," expr } ] ")"
 
@@ -46,7 +47,7 @@ declared above every use of its name, so the set is always complete when it is n
 from .ast_nodes import (AssertNode, AssignNode, BinOpNode, BoolNode, CallNode,
                         CallStmtNode, DeclNode, ExitNode, FieldDeclNode, FieldNode,
                         FunctionNode, IfNode, IntNode, Link, LiteralNode,
-                        MemberCallNode, ParamNode,
+                        MemberCallNode, ParamNode, ReadNode,
                         PrintNode, ProgramNode, ReturnNode, SquadNode, StringNode,
                         VarNode)
 from .errors import CompileError
@@ -451,7 +452,7 @@ class Parser:
         return node
 
     def parse_factor(self):
-        """factor ::= number | "merch" | "woof" | call | ident | "(" expr ")" """
+        """factor ::= number | "merch" | "woof" | read | literal | call | place [ args ] | "(" expr ")" """
         token = self.peek()
         if token.kind == "number":
             self.eat()
@@ -459,6 +460,11 @@ class Parser:
         if self.at_sub("bool"):
             self.eat()
             return BoolNode(token.line, token.col, token.text == "merch")
+        if self.at("keyword", "finna_hear"):
+            self.eat()
+            self.expect("punct", "(", "'(' after 'finna_hear'")
+            self.expect("punct", ")", "')': finna_hear takes no arguments")
+            return ReadNode(token.line, token.col)
         if token.kind == "identifier" and token.text in self.squads:
             return self.parse_literal()
         if token.kind == "identifier":

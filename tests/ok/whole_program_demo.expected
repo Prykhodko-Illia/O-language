@@ -1,0 +1,3 @@
+Circle{center: Point{x: 3, y: 5}, r: 5}
+true
+Program exit with result 34

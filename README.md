@@ -165,7 +165,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 | `on_the_guys( … )` | assert | `air_out( … )` | print |
 | `lowkey` | comment to the end of the line | `pab_on` | inverted line (see below) |
 | `squad Name { … }` | a structure: a type with fields | `a.b.c` | a field, through a chain |
-| `obj.f( … )` | a member function call | | |
+| `obj.f( … )` | a member function call | `finna_hear()` | read one integer from the input |
 
 All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
 start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
@@ -389,8 +389,23 @@ scat 0 no_bap                   lowkey exit the program, with or without a value
 lowkey everything after lowkey is ignored up to the end of the line
 ```
 
-`air_out` prints its one argument and a newline: a `doze` or a `fawty` as a number, a `line` as `true` or
-`false`, a string as it is written (a `%` stays a `%`).
+`air_out` prints its one argument and **always ends with a newline**: a `doze` or a `fawty` as a number, a `line`
+as `true` or `false`, a string as it is written (a `%` stays a `%`), and an object as its squad's name and its
+fields in declaration order, each as `name: value`, a squad field the same way inside it:
+
+```
+air_out(c) no_bap         →  Circle{center: Point{x: 3, y: 5}, r: 5}
+air_out(p.flipped()) no_bap   →  Point{x: 4, y: 3}       (a call result or a literal prints the same way)
+```
+
+`finna_hear()` reads one integer from the standard input -- spaces and newlines between numbers do not matter --
+and is a `doze` wherever a value goes: in a literal, an argument, a condition. When the input has no number left,
+the program says so and ends with exit code 1, like any runtime error:
+
+```
+Point p post Point{finna_hear(), finna_hear()} no_bap     (input: 3 4)
+scat p.d2() no_bap                                         →  Program exit with result 25
+```
 
 `scat value` prints `Program exit with result value` and ends the program with exit code 0 -- wherever it
 stands, inside a drill too. `scat` with no value ends it silently, and so does reaching the end of the file.
@@ -412,6 +427,7 @@ checked when it runs. A broken one prints one line -- where, and what -- and end
 | `breakdown` or `scraps` by 0 | `10 breakdown zero` | `line 2:12: 'breakdown' by 0, you can't split it with nobody` |
 | the one quotient that does not fit | `low breakdown minus_one` with low = -2147483648 | `line 4:13: doze overflow in 'breakdown', the bag is too big for doze` |
 | an `on_the_guys` that is `woof` | `on_the_guys(target in_tune 40)` | `line 3:1: you said on_the_guys, but it was cap` |
+| `finna_hear()` with no number left on the input | `doze n post finna_hear()` | `line 2:13: finna_hear heard nothing, no number on the line` |
 
 (`low scraps minus_one` is 0 and fine: the remainder always fits.)
 
@@ -484,7 +500,7 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | `in_tune` and `fugazi` compare two integers (any widths) or two lines, and give a `line`. | `comparisons` | `compare_line_with_doze` |
 | A `doze` goes where a `fawty` is expected -- the only conversion there is: never `fawty` into `doze`, never across `line`. | `widen_doze_into_fawty` | `narrow_fawty_into_doze`, `arg_fawty_into_doze` |
 | The condition of `spot` and of `on_the_guys` is a `line`. | `if_pivot` | `condition_not_line`, `assert_not_line` |
-| `air_out` takes a string, an integer or a line; `scat` an integer, a line or nothing. | `print_string_and_value` | `string_in_expression` |
+| `air_out` takes a string, an integer, a line or an object; `scat` an integer, a line or nothing. | `print_string_and_value` | `string_in_expression`, `scat_a_squad` |
 
 **Drills and calls**
 
@@ -519,6 +535,14 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | The fields come first; a field and a member function do not share a name, nor do two member functions; a member function is never `sliding`. | `member_changes_a_sliding_object` | `field_after_member`, `member_named_like_field`, `member_declared_twice`, `sliding_member` |
 | A member function that posts to a field, or calls a mutating one on its object or a field of it, is mutating; it is called only through `sliding` links. A reading one is called on any object. | `member_changes_a_sliding_object`, `member_through_a_chain`, `member_reads_on_a_tucked_object` | `mutating_on_tucked_object`, `mutating_through_another_member`, `mutating_through_tucked_field`, `mutating_on_a_parameter`, `mutating_on_tucked_field_inside_member` |
 
+**Input and output**
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| `finna_hear()` takes no arguments and is a `doze`. | `read_in_every_place` | `finna_hear_with_argument`, `finna_hear_into_line` |
+| `air_out` takes a string, an integer, a line or an object -- never the call of a drill that returns nothing -- and puts a newline after it. | `print_every_kind` | `print_void_call` |
+| An object prints as `Squad{field: value, …}`, fields in declaration order, a squad field the same way inside; a `line` field as `true` / `false`. | `print_objects`, `whole_program_demo` | -- |
+
 **Constants** (the overflow check)
 
 | Rule | Follows | Breaks |
@@ -535,6 +559,7 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | `breakdown` and `scraps` never divide by 0; they round toward zero, as in C. | `arithmetic_at_run_time` | `runtime_division_by_zero`, `runtime_scraps_by_zero` |
 | `on_the_guys` with a `woof` condition ends the program. | `assert_holds_at_run_time` | `runtime_assert_breaks` |
 | `scat` ends the program wherever it stands; nothing after it runs. | `scat_inside_drill`, `code_after_scat` | -- |
+| `finna_hear()` reads one integer, or ends the program when there is none. | `point_read`, `read_in_every_place` | `read_with_nothing_to_hear` |
 | A drill's name never meets the runtime's: `drill main` and `drill printf` are ordinary drills. | `drill_named_main_and_printf` | -- |
 
 ### 🚨 Errors the compiler catches

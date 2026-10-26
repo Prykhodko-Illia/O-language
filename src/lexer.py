@@ -48,7 +48,7 @@ KEYWORDS = {
     "drill": "function", "cuh": "return", "scat": "exit",
     "on_the_guys": "assert", "air_out": "print",
     "no_bap": "end", "pab_on": "flip",
-    "squad": "squad",
+    "squad": "squad", "finna_hear": "read",
 }
 
 COMMENT_WORD = b"lowkey"

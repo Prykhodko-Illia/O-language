@@ -65,7 +65,13 @@ it reaches its end.
 
 air_out is printf with a format by type -- "%d\\n" for a doze, "%lld\\n" for a fawty, and
 "%s\\n" both for a line (a select between the global strings "true" and "false") and for
-a string, whose text goes in as the argument so a % in it stays a %. scat prints
+a string, whose text goes in as the argument so a % in it stays a %. An object is printed
+by walking its squad's field table -- printf("Point{"), then for every field a gep, a
+load and a printf with a format like ", y: %d", a squad field the same way one level
+down, then printf("}") -- so a new squad needs no new code here. An object that is not in
+a variable -- a call result, a literal -- is stored into a slot first. finna_hear() is
+scanf("%d") into a slot in the entry block, then a load of it; when scanf finds no
+number, the program says so and ends like any other runtime error. scat prints
 "Program exit with result ..." with the same formats and calls exit(0), wherever it
 stands -- in a drill too; scat with no value just calls exit(0). Every format and text is
 a private global constant, one per distinct text.
@@ -103,6 +109,7 @@ class CodeGen:
         self.module = ir.Module(name="o_language", context=self.context)
         self.module.triple = llvm.get_default_triple()
         self.types = dict(LLVM_TYPE)      # type name -> LLVM type: built-ins, then each squad
+        self.squads = {}                  # squad name -> SquadNode, for its fields when printing
 
         # The function being built. begin_function() sets these; each function has its
         # own entry block and its own run of allocas at its top.
@@ -118,6 +125,7 @@ class CodeGen:
 
         c_type = ir.FunctionType(I32, [I8_PTR], var_arg=True)   # int f(const char *fmt, ...)
         self.printf = ir.Function(self.module, c_type, name="printf")
+        self.scanf = ir.Function(self.module, c_type, name="scanf")
         self.exit = ir.Function(self.module, ir.FunctionType(ir.VoidType(), [I32]), name="exit")
         self.texts = {}            # bytes -> the global constant holding them and a NUL
 
@@ -255,6 +263,7 @@ class CodeGen:
         # Every field type is built in or a squad above, so it is already in self.types.
         struct_type.set_body(*(self.types[field.type_name] for field in node.fields))
         self.types[node.name] = struct_type
+        self.squads[node.name] = node
 
     # -- statements: emit IR, return nothing --------------------------------
 
@@ -311,8 +320,37 @@ class CodeGen:
         value = node.value
         if isinstance(value, StringNode):                        # its text as written: a % stays a %
             self.printf_call(b"%s\n", self.text(value.value.encode()))
-            return
-        self.printf_call(FORMAT[value.type] + b"\n", self.printable(self.value(value, value.type), value.type))
+        elif value.type in self.squads:                          # Point{x: 3, y: 4}
+            self.print_squad(self.object_address(value), value.type)
+            self.printf_call(b"\n")
+        else:
+            self.print_scalar(self.value(value, value.type), value.type, b"", b"\n")
+
+    def print_scalar(self, value, type_name, before, after):
+        """A doze, a fawty or a line between `before` and `after`, in one printf."""
+        self.printf_call(before + FORMAT[type_name] + after, self.printable(value, type_name))
+
+    def print_squad(self, ptr, type_name):
+        """The object at `ptr`: its squad's name, then each field in declaration order."""
+        self.printf_call(type_name.encode() + b"{")
+        for field in self.squads[type_name].fields:
+            before = (b", " if field.index else b"") + field.name.encode() + b": "
+            field_ptr = self.gep(ptr, [field.index], name=field.name)
+            if field.type_name in self.squads:                   # one level down, the same way
+                self.printf_call(before)
+                self.print_squad(field_ptr, field.type_name)
+            else:
+                self.print_scalar(self.builder.load(field_ptr), field.type_name, before, b"")
+        self.printf_call(b"}")
+
+    def object_address(self, value):
+        """Where an object lives: a variable or a field chain has a place already; any other
+        value -- a call result, a literal -- is stored into a slot of its own first."""
+        if hasattr(value, "decl"):
+            return self.address_of(value)
+        slot = self.alloca_in_entry(self.types[value.type], "tmp")
+        self.builder.store(value.accept(self), slot)
+        return slot
 
     # -- expressions: return the value the builder produced -----------------
 
@@ -381,6 +419,13 @@ class CodeGen:
             field_type = node.squad.fields[index].type_name
             value = self.builder.insert_value(value, self.value(part, field_type), index)
         return value
+
+    def visit_read(self, node):
+        slot = self.alloca_in_entry(I32, "heard")                # scanf gets a pointer, not a value
+        count = self.builder.call(self.scanf, [self.text(b"%d"), slot])
+        self.trap_if(self.builder.icmp_signed("!=", count, ir.Constant(I32, 1)), node,
+                     "finna_hear heard nothing, no number on the line")
+        return self.builder.load(slot, name="heard")
 
     def visit_int(self, node):
         return ir.Constant(LLVM_TYPE[node.type], node.value)    # reached only through value(): a constant

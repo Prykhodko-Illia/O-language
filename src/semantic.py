@@ -57,7 +57,9 @@ The type rules:
   * a doze value may go where a fawty is expected -- and that is the only conversion in
     the language: never fawty into doze, never across line;
   * the condition of spot and of on_the_guys is a line;
-  * air_out takes a string, an integer or a line; scat takes an integer, a line, or nothing;
+  * air_out takes a string, an integer, a line or an object; scat takes an integer, a
+    line, or nothing;
+  * finna_hear() reads one integer from the standard input and is a doze;
   * a call takes one argument per parameter, each one assignable to the parameter's
     type, and has the drill's result type; a drill that returns nothing has no value.
 
@@ -263,7 +265,9 @@ class SemanticChecker:
 
     def operand(self, expr, what):
         """An integer or a line used as it is: a constant must fit at least in fawty."""
-        type_name = self.value(expr)
+        return self.scalar(expr, self.value(expr), what)
+
+    def scalar(self, expr, type_name, what):
         if type_name not in SCALARS:
             raise error_at(expr, f"{what}, got {type_name}")
         self.fits(expr, "fawty")
@@ -459,7 +463,9 @@ class SemanticChecker:
         if isinstance(node.value, StringNode):
             node.value.accept(self)
         else:
-            self.operand(node.value, "'air_out' takes a string, an integer or a line")
+            type_name = self.value(node.value)
+            if type_name not in self.squads:                     # an object prints field by field
+                self.scalar(node.value, type_name, "'air_out' takes a string, an integer, a line or an object")
 
     # -- expressions: return the type ---------------------------------------
 
@@ -552,6 +558,10 @@ class SemanticChecker:
     def visit_var(self, node):
         node.type = self.walk_chain(node, write=False)    # x in a member function may be this.x
         node.const = getattr(node.decl, "const", None)    # a tucked variable with a constant value
+        return node.type
+
+    def visit_read(self, node):
+        node.type, node.const = "doze", None
         return node.type
 
     def visit_int(self, node):
