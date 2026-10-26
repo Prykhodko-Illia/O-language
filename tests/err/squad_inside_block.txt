@@ -1,0 +1,5 @@
+spot merch {
+    squad Point {
+        doze x no_bap
+    }
+}

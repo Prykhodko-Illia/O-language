@@ -21,12 +21,23 @@ drills, never a variable of the top level, which lives in main.
 Drills sit in a table of their own, name -> FunctionNode. It is filled with every
 signature before any body is checked, so a drill may call itself or one declared below.
 
+Squads sit in a third table, name -> SquadNode, filled first of all: a squad is declared
+above every use of its name (the parser sees to that), and each of its fields gets its
+`index` -- its place in the squad, the number a gep takes. A chain c.center.x is walked
+link by link: c is a variable, its type is a squad, center is a field of that squad,
+its type is a squad again, x is a field of that one; the field numbers go on the node,
+so the code generator never looks a field up by its name.
+
 Its contract with the code generator is a handful of fields on the tree:
   * `node.type` on every expression -- "doze", "fawty", "line", or None for the call
     of a drill that returns nothing (which is only ever a statement of its own);
   * `node.const` on every expression -- its value when the compiler knows it, else None;
-  * `node.decl` on every VarNode and AssignNode -- the DeclNode or ParamNode the name
-    resolved to;
+  * `node.decl` on every VarNode, FieldNode and AssignNode -- the DeclNode or ParamNode
+    the name resolved to;
+  * `node.indices` on every FieldNode and AssignNode -- the chain as field numbers, so
+    c.center.x is [0, 0] -- and `node.target_type` on every AssignNode: the type of what
+    is written, the variable's or the last field's;
+  * `node.squad` on every LiteralNode -- the SquadNode it builds, for its fields' types;
   * `node.fn` on every CallNode -- the FunctionNode it calls.
 The generator reads those and looks nothing up by name. With shadowing that matters:
 three x in three blocks are three declarations, and this pass is the one that knows
@@ -49,6 +60,22 @@ The type rules:
   * air_out takes a string, an integer or a line; scat takes an integer, a line, or nothing;
   * a call takes one argument per parameter, each one assignable to the parameter's
     type, and has the drill's result type; a drill that returns nothing has no value.
+
+The squad rules:
+  * a squad is declared once, at the top level, with at least one field, and its fields
+    have different names; a field's type is built in or a squad above -- never the
+    squad itself, so no squad can contain itself;
+  * a squad's name is not the name of a drill;
+  * a literal Point{3, 4} gives one value per field, in field order, each one of the
+    field's type (a doze may go into a fawty field);
+  * a chain names a field that exists at every link, and every link but the last is a
+    squad;
+  * posting through c.center.x needs c, center and x all sliding: a tucked link anywhere
+    on the way makes the whole chain read-only, and a parameter is always tucked;
+  * a whole object is not posted to again -- `p post q` is an error: its fields are,
+    one by one. `Point q post p` declares a copy, and a squad goes into a parameter and
+    out of a drill as a copy too;
+  * squads are not compared, not used in arithmetic, and not a value of scat.
 
 The drill rules:
   * cuh is only inside a drill; it carries a value of the result type, or nothing in a
@@ -73,11 +100,12 @@ one number of the type it lands in, never as an addition that could overflow on 
 way. Everything that is not constant is checked when the program runs.
 """
 
-from .ast_nodes import DeclNode, ExitNode, FunctionNode, IfNode, ParamNode, ReturnNode, StringNode
+from .ast_nodes import DeclNode, ExitNode, FunctionNode, IfNode, ParamNode, ReturnNode, SquadNode, StringNode, chain
 from .errors import CompileError, error_at
 from .parser import RANGES
 
 INTEGERS = ("doze", "fawty")
+SCALARS = ("doze", "fawty", "line")
 
 
 def wider(left, right):
@@ -123,6 +151,7 @@ class SemanticChecker:
     def __init__(self):
         self.scopes = [{}]                # frames, innermost last: name -> DeclNode | ParamNode
         self.fns = {}                     # name -> FunctionNode, every signature before any body
+        self.squads = {}                  # name -> SquadNode, every one before anything else
         self.current_fn = None            # the FunctionNode whose body is being checked, or None
         self.top_level_names = set()      # names the top level declares, to explain a drill's error
 
@@ -189,23 +218,80 @@ class SemanticChecker:
             return                        # numbers only: it fits, and that is all it needs
         raise error_at(expr, f"{what} must be {want}, got {have}")
 
-    def operand(self, expr):
+    def operand(self, expr, what):
         """An integer or a line used as it is: a constant must fit at least in fawty."""
         type_name = self.value(expr)
+        if type_name not in SCALARS:
+            raise error_at(expr, f"{what}, got {type_name}")
         self.fits(expr, "fawty")
+        return type_name
+
+    def walk_chain(self, node, write):
+        """Follow node.name, then node.links; store decl and indices on the node and return
+        the type at the end. With `write`, every link must be sliding."""
+        decl = self.lookup(node, node.name)
+        target = chain(node.name, node.links)
+        if write and isinstance(decl, ParamNode):
+            who = "it" if not node.links else f"'{node.name}'"
+            raise error_at(node, f"cannot post to '{target}': {who} is a parameter of "
+                                 f"'{self.current_fn.name}', and parameters are tucked")
+        if write and not decl.mutable:
+            if not node.links:
+                raise error_at(node, f"cannot post to '{node.name}': it is tucked, "
+                                     f"declare it 'sliding {decl.type_name} {node.name}' to change it")
+            raise error_at(node, f"cannot post to '{target}': '{node.name}' is tucked")
+        type_name, path, indices = decl.type_name, node.name, []
+        for link in node.links:
+            squad = self.squads.get(type_name)
+            if squad is None:
+                raise error_at(link, f"'{path}' is {type_name}, not a squad: it has no field '{link.name}'")
+            field = next((f for f in squad.fields if f.name == link.name), None)
+            if field is None:
+                raise error_at(link, f"squad '{squad.name}' has no field '{link.name}'")
+            path += "." + link.name
+            if write and not field.mutable:
+                raise error_at(link, f"cannot post to '{target}': field '{link.name}' of "
+                                     f"{squad.name} is tucked")
+            indices.append(field.index)
+            type_name = field.type_name
+        node.decl, node.indices = decl, indices
         return type_name
 
     # -- the program and the drills -----------------------------------------
 
     def visit_program(self, node):
         self.top_level_names = {s.name for s in top_level_decls(node.items)}
-        for item in node.items:           # every signature first...
+        for item in node.items:           # every squad first: each one is above its uses
+            if isinstance(item, SquadNode):
+                item.accept(self)
+        for item in node.items:           # then every signature...
             if isinstance(item, FunctionNode):
                 self.declare_fn(item)
-        for item in node.items:           # ...then everything in program order
-            item.accept(self)
+        for item in node.items:           # ...then everything else in program order
+            if not isinstance(item, SquadNode):
+                item.accept(self)
+
+    def visit_squad(self, node):
+        if node.name in self.squads:
+            prev = self.squads[node.name]
+            raise error_at(node, f"squad '{node.name}' is already declared at line {prev.line}:{prev.col}")
+        seen = set()
+        for index, field in enumerate(node.fields):
+            if field.name in seen:
+                raise error_at(field, f"squad '{node.name}' already has a field '{field.name}'")
+            if field.type_name == node.name:
+                raise error_at(field, f"squad '{node.name}' cannot contain itself: field '{field.name}' "
+                                      f"would hold a {node.name}, which holds a {node.name}, ...")
+            seen.add(field.name)
+            field.index = index
+        self.squads[node.name] = node
+
+    def visit_field_decl(self, node):
+        pass                              # checked with its squad
 
     def declare_fn(self, node):
+        if node.name in self.squads:
+            raise error_at(node, f"'{node.name}' is already the name of a squad: a drill needs another name")
         if node.name in self.fns:
             prev = self.fns[node.name]
             raise error_at(node, f"drill '{node.name}' is already declared at line {prev.line}:{prev.col}")
@@ -242,15 +328,13 @@ class SemanticChecker:
         self.declare(node)
 
     def visit_assign(self, node):
-        decl = self.lookup(node, node.name)
-        if isinstance(decl, ParamNode):
-            raise error_at(node, f"cannot post to '{node.name}': it is a parameter of "
-                                 f"'{self.current_fn.name}', and parameters are tucked")
-        if not decl.mutable:
-            raise error_at(node, f"cannot post to '{node.name}': it is tucked, "
-                                 f"declare it 'sliding {decl.type_name} {node.name}' to change it")
-        self.check_value(node.value, decl.type_name, f"the value posted to '{node.name}'")
-        node.decl = decl
+        target_type = self.walk_chain(node, write=True)
+        target = chain(node.name, node.links)
+        if target_type in self.squads:
+            raise error_at(node, f"cannot post a whole {target_type} to '{target}': "
+                                 f"post to its fields, one by one")
+        self.check_value(node.value, target_type, f"the value posted to '{target}'")
+        node.target_type = target_type
 
     def visit_call_stmt(self, node):
         node.call.accept(self)            # a statement may drop the result, or have none
@@ -275,7 +359,7 @@ class SemanticChecker:
 
     def visit_exit(self, node):
         if node.value is not None:
-            self.operand(node.value)
+            self.operand(node.value, "'scat' takes an integer, a line or nothing")
 
     def visit_assert(self, node):
         self.check_value(node.cond, "line", "the condition of 'on_the_guys'")
@@ -284,7 +368,7 @@ class SemanticChecker:
         if isinstance(node.value, StringNode):
             node.value.accept(self)
         else:
-            self.operand(node.value)
+            self.operand(node.value, "'air_out' takes a string, an integer or a line")
 
     # -- expressions: return the type ---------------------------------------
 
@@ -325,9 +409,23 @@ class SemanticChecker:
         node.fn, node.type, node.const = fn, fn.return_type, None
         return node.type
 
+    def visit_field(self, node):
+        node.type, node.const = self.walk_chain(node, write=False), None
+        return node.type
+
+    def visit_literal(self, node):
+        squad = self.squads[node.type_name]       # the parser only makes a literal of a squad
+        if len(node.values) != len(squad.fields):
+            raise error_at(node, f"squad '{squad.name}' has {plural(len(squad.fields), 'field')}, "
+                                 f"so {squad.name}{{...}} takes {plural(len(squad.fields), 'value')}, got {len(node.values)}")
+        for field, value in zip(squad.fields, node.values):
+            self.check_value(value, field.type_name, f"field '{field.name}' of {squad.name}")
+        node.type, node.const, node.squad = squad.name, None, squad
+        return node.type
+
     def visit_var(self, node):
         decl = self.lookup(node, node.name)
-        node.decl, node.type = decl, decl.type_name
+        node.decl, node.type, node.indices = decl, decl.type_name, []
         node.const = getattr(decl, "const", None)   # a tucked variable with a constant value
         return node.type
 

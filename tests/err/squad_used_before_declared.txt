@@ -1,0 +1,4 @@
+Point p post Point{1} no_bap
+squad Point {
+    doze x no_bap
+}

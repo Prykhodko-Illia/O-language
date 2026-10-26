@@ -3,25 +3,29 @@
 Recursive descent, written by hand: one method per rule of grammar.ebnf.
 
   program   ::= { item }
-  item      ::= function | statement
+  item      ::= squad | function | statement
+  squad     ::= "squad" ident "{" field { field } "}"
+  field     ::= [ "sliding" ] type ident "no_bap"
   function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
   param     ::= type ident
   block     ::= "{" statement { statement } "}"
   statement ::= decl | assign | call_stmt | if | return | exit | assert | print | inverted
   decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
-  type      ::= "doze" | "fawty" | "line"
-  assign    ::= ident "post" expr "no_bap"
+  type      ::= "doze" | "fawty" | "line" | squad_name
+  assign    ::= place "post" expr "no_bap"
+  place     ::= ident { "." ident }
   call_stmt ::= call "no_bap"
   if        ::= "spot" expr block [ "pivot" block ]
   return    ::= "cuh" [ expr ] "no_bap"
   exit      ::= "scat" [ expr ] "no_bap"
   assert    ::= "on_the_guys" "(" expr ")" "no_bap"
   print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
-  inverted  ::= "pab_on" expr ( "post" ident [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
+  inverted  ::= "pab_on" expr ( "post" place [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
   expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
   arith     ::= term { ( "bump" | "tuck_in" ) term }
   term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
-  factor    ::= number | "merch" | "woof" | call | ident | "(" expr ")"
+  factor    ::= number | "merch" | "woof" | literal | call | place | "(" expr ")"
+  literal   ::= squad_name "{" expr { "," expr } "}"
   call      ::= ident "(" [ expr { "," expr } ] ")"
 
 peek() returns the current token, eat() returns it and moves on. One token of
@@ -30,12 +34,19 @@ both the parser eats that token first and then decides by the one after it, so i
 still never looks more than one token ahead:
   - a type starts both a function (`doze drill f(...)`) and a declaration (`doze x post 1`);
   - a name starts both an assignment (`x post ...`) and a call (`f(...)`).
+
+A squad's name is an identifier, so the parser keeps the names of the squads declared so
+far: an identifier among them is a type -- `Point p post ...` is a declaration, and
+`Point{3, 4}` is a literal -- and any other identifier is a variable or a drill. That is
+what keeps `spot flag { ... }` a condition and a block: flag is not a squad. A squad is
+declared above every use of its name, so the set is always complete when it is needed.
 """
 
 from .ast_nodes import (AssertNode, AssignNode, BinOpNode, BoolNode, CallNode,
-                        CallStmtNode, DeclNode, ExitNode, FunctionNode, IfNode,
-                        IntNode, ParamNode, PrintNode, ProgramNode, ReturnNode,
-                        StringNode, VarNode)
+                        CallStmtNode, DeclNode, ExitNode, FieldDeclNode, FieldNode,
+                        FunctionNode, IfNode, IntNode, Link, LiteralNode, ParamNode,
+                        PrintNode, ProgramNode, ReturnNode, SquadNode, StringNode,
+                        VarNode)
 from .errors import CompileError
 
 
@@ -82,6 +93,7 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens              # [Token] from the lexer, ending with eof
         self.pos = 0
+        self.squads = set()               # names of the squads declared so far: types
 
     # -- reading the token stream -------------------------------------------
 
@@ -101,6 +113,11 @@ class Parser:
     def at_sub(self, sub):
         token = self.peek()
         return token.kind == "keyword" and token.sub == sub
+
+    def at_type(self):
+        """A built-in type, or the name of a squad declared above."""
+        token = self.peek()
+        return self.at_sub("type") or (token.kind == "identifier" and token.text in self.squads)
 
     def error(self, msg, token=None):
         token = token or self.peek()
@@ -123,9 +140,11 @@ class Parser:
         first = self.peek()
         items = []
         while not self.at("eof"):
-            if self.at("keyword", "drill"):
+            if self.at("keyword", "squad"):
+                items.append(self.parse_squad())
+            elif self.at("keyword", "drill"):
                 items.append(self.parse_function(None))
-            elif self.at_sub("type"):
+            elif self.at_type():
                 items.append(self.parse_typed(top_level=True))
             else:
                 items.append(self.parse_statement())
@@ -157,6 +176,35 @@ class Parser:
         body = self.parse_block(f"the body of '{name.text}'")
         return FunctionNode(name.line, name.col, name.text, params, return_type, body)
 
+    def parse_squad(self):
+        """squad ::= "squad" ident "{" field { field } "}" """
+        self.eat()                                             # squad
+        name = self.expect("identifier", None, "a squad name after 'squad'")
+        self.squads.add(name.text)        # a type from here on (a field of its own type is a semantic error)
+        self.expect("punct", "{", f"'{{' to open squad '{name.text}'")
+        if self.at("punct", "}"):
+            raise self.error(f"squad '{name.text}' is empty: a squad needs at least one field")
+        fields = [self.parse_field()]
+        while not self.at("punct", "}"):
+            if self.at("eof"):
+                raise self.error(f"squad '{name.text}' is not closed: expected '}}'")
+            fields.append(self.parse_field())
+        self.eat()                                             # }
+        return SquadNode(name.line, name.col, name.text, fields)
+
+    def parse_field(self):
+        """field ::= [ "sliding" ] type ident "no_bap" """
+        mutable = self.at("keyword", "sliding")
+        if mutable:
+            self.eat()
+        type_name = self.parse_type()
+        name = self.expect("identifier", None, f"a field name after '{type_name}'")
+        if self.at("keyword", "post"):
+            raise self.error(f"field '{name.text}' takes no value here: every object gets its own, "
+                             f"in its literal")
+        self.expect_end("field")
+        return FieldDeclNode(name.line, name.col, name.text, type_name, mutable)
+
     def parse_param(self):
         """param ::= type ident"""
         type_name = self.parse_type()
@@ -164,9 +212,9 @@ class Parser:
         return ParamNode(name.line, name.col, name.text, type_name)
 
     def parse_type(self):
-        """type ::= "doze" | "fawty" | "line" """
-        if not self.at_sub("type"):
-            raise self.error(f"expected a type (doze, fawty or line), found {describe(self.peek())}")
+        """type ::= "doze" | "fawty" | "line" | squad_name"""
+        if not self.at_type():
+            raise self.error(f"expected a type (doze, fawty, line or a squad), found {describe(self.peek())}")
         return self.eat().text
 
     def parse_block(self, what):
@@ -203,6 +251,10 @@ class Parser:
                 return self.parse_decl(True, self.parse_type())
             if token.text == "drill":
                 raise self.error("a function can only be declared at the top level, not inside a block")
+            if token.text == "squad":
+                raise self.error("a squad can only be declared at the top level, not inside a block")
+        if self.at_type():                                     # Point p post ...
+            return self.parse_typed(top_level=False)
         if token.kind == "identifier":
             return self.parse_assign_or_call()
         raise self.error(f"a statement cannot start with {describe(token)}")
@@ -236,7 +288,10 @@ class Parser:
         if self.at("keyword", "post"):
             self.eat()
             name = self.expect("identifier", None, "a variable name after 'post'")
-            if self.at_sub("type"):
+            links = self.parse_links()
+            if links:                                          # pab_on 5 post c.center.x
+                node = AssignNode(name.line, name.col, name.text, value, links)
+            elif self.at_type():
                 type_name = self.eat().text
                 mutable = self.at("keyword", "sliding")
                 if mutable:
@@ -277,20 +332,23 @@ class Parser:
                                f"({low} .. {high})")
 
     def parse_assign_or_call(self):
-        """assign ::= ident "post" expr "no_bap"     call_stmt ::= call "no_bap" """
+        """assign ::= place "post" expr "no_bap"     call_stmt ::= call "no_bap" """
         name = self.eat()
+        links = self.parse_links()
         if self.at("keyword", "post"):
             self.eat()
-            node = AssignNode(name.line, name.col, name.text, self.parse_expr())
+            node = AssignNode(name.line, name.col, name.text, self.parse_expr(), links)
             self.expect_end("assignment")
             return node
+        if links:
+            raise self.error(f"expected 'post' after '{links[-1].name}', found {describe(self.peek())}")
         if self.at("punct", "("):
             node = CallStmtNode(name.line, name.col, self.parse_call(name))
             self.expect_end("call")
             return node
         if self.at("identifier"):
-            raise self.error(f"'{name.text}' is not a type (doze, fawty or line), and a name cannot "
-                             f"be followed by another name", name)
+            raise self.error(f"'{name.text}' is not a type (doze, fawty, line or a squad declared above), "
+                             f"and a name cannot be followed by another name", name)
         raise self.error(f"expected 'post' or '(' after '{name.text}', found {describe(self.peek())}")
 
     def parse_if(self):
@@ -376,10 +434,15 @@ class Parser:
         if self.at_sub("bool"):
             self.eat()
             return BoolNode(token.line, token.col, token.text == "merch")
+        if token.kind == "identifier" and token.text in self.squads:
+            return self.parse_literal()
         if token.kind == "identifier":
             self.eat()
             if self.at("punct", "("):
                 return self.parse_call(token)
+            links = self.parse_links()
+            if links:
+                return FieldNode(token.line, token.col, token.text, links)
             return VarNode(token.line, token.col, token.text)
         if self.at("punct", "("):
             self.eat()
@@ -389,6 +452,31 @@ class Parser:
         if token.kind == "string":
             raise self.error("a string can only be printed with air_out")
         raise self.error(f"expected a value (a number, merch, woof, a name or '('), found {describe(token)}")
+
+    def parse_links(self):
+        """place ::= ident { "." ident }   -- the ident is already eaten: the links only"""
+        links = []
+        while self.at("punct", "."):
+            self.eat()
+            field = self.expect("identifier", None, "a field name after '.'")
+            links.append(Link(field.text, field.line, field.col))
+        return links
+
+    def parse_literal(self):
+        """literal ::= squad_name "{" expr { "," expr } "}" """
+        name = self.eat()
+        if not self.at("punct", "{"):
+            raise self.error(f"'{name.text}' is a squad: make one with {name.text}{{...}}, "
+                             f"a value for every field")
+        self.eat()                                             # {
+        if self.at("punct", "}"):
+            raise self.error(f"{name.text}{{}} is empty: give a value for every field")
+        values = [self.parse_expr()]
+        while self.at("punct", ","):
+            self.eat()
+            values.append(self.parse_expr())
+        self.expect("punct", "}", f"',' or '}}' in the literal of '{name.text}'")
+        return LiteralNode(name.line, name.col, name.text, values)
 
     def parse_call(self, name):
         """call ::= ident "(" [ expr { "," expr } ] ")"   -- the name is already eaten"""

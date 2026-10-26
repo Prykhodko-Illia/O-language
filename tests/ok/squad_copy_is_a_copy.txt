@@ -1,0 +1,9 @@
+squad Point {
+    sliding doze x no_bap
+    sliding doze y no_bap
+}
+sliding Point p post Point{1, 2} no_bap
+Point q post p no_bap
+p.y post 99 no_bap
+air_out(p.y) no_bap
+air_out(q.y) no_bap

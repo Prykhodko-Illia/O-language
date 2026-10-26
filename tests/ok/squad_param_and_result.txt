@@ -1,0 +1,17 @@
+squad Point {
+    doze x no_bap
+    doze y no_bap
+}
+Point drill origin() {
+    cuh Point{0, 0} no_bap
+}
+Point drill moved(Point p, doze dx) {
+    cuh Point{p.x bump dx, p.y} no_bap
+}
+doze drill d2(Point p) {
+    cuh p.x double_back p.x bump p.y double_back p.y no_bap
+}
+Point a post moved(moved(origin(), 3), 0) no_bap
+Point b post Point{a.x, 4} no_bap
+air_out(b.x) no_bap
+scat d2(b) no_bap

@@ -37,6 +37,15 @@ exactly one terminator -- br, ret, or the unreachable after a call of exit -- an
 after it. Statements written after a cuh or a scat in the same block are legal and never
 run: they go into a fresh block that nothing branches to.
 
+A squad is an identified struct type, %"squad.Point" = type {i32, i32}, and an object is
+one alloca of it. A field is reached with a gep: index 0 steps through the pointer to the
+object itself, then one index per link of the chain, so c.center.x is one gep with indices
+0, 0, 0. The indices come from the semantic pass; nothing here looks a field up by name.
+A literal Point{3, 4} is not an object in memory but one value of the struct type, built
+in registers: it starts as undef and each field goes in with insertvalue, by index. A
+whole object moves as one value -- a load of %"squad.Point" and a store of it -- which is
+how Point q post p copies, and how a squad goes into a parameter and out of a drill.
+
 Every drill becomes a function of the module named @"drill.NAME": a name of the program
 cannot hold a '.', so drill main or drill printf never meets the runtime's main and
 printf. All of them are declared before any body is built, so a call can name a drill
@@ -60,11 +69,11 @@ entry-block allocas to registers (opt -passes=mem2reg).
 from llvmlite import ir
 import llvmlite.binding as llvm
 
-from .ast_nodes import FunctionNode, StringNode
+from .ast_nodes import FunctionNode, SquadNode, StringNode, chain
 
 I1, I8, I32, I64 = ir.IntType(1), ir.IntType(8), ir.IntType(32), ir.IntType(64)
 
-LLVM_TYPE = {"doze": I32, "fawty": I64, "line": I1}
+LLVM_TYPE = {"doze": I32, "fawty": I64, "line": I1}   # the squads join them per module
 
 FORMAT = {"doze": b"%d", "fawty": b"%lld", "line": b"%s"}
 
@@ -79,8 +88,12 @@ class CodeGen:
     """Builds a module from a checked ProgramNode: one function per drill, and main."""
 
     def __init__(self):
-        self.module = ir.Module(name="o_language")
+        # A context of our own: named struct types live in the context, and the global one
+        # would keep a %"squad.Point" from an earlier module in the same process.
+        self.context = ir.Context()
+        self.module = ir.Module(name="o_language", context=self.context)
         self.module.triple = llvm.get_default_triple()
+        self.types = dict(LLVM_TYPE)      # type name -> LLVM type: built-ins, then each squad
 
         # The function being built. begin_function() sets these; each function has its
         # own entry block and its own run of allocas at its top.
@@ -171,6 +184,10 @@ class CodeGen:
             return self.builder.sext(result, I64, name="wide")
         return result
 
+    def gep(self, ptr, indices, name):
+        """A pointer to a field: 0 to step through `ptr`, then one index per link."""
+        return self.builder.gep(ptr, [ir.Constant(I32, i) for i in (0, *indices)], name=name)
+
     def statements(self, body):
         for stmt in body:
             if self.builder.block.is_terminated:                 # after a cuh or a scat:
@@ -180,17 +197,20 @@ class CodeGen:
     # -- the program and the drills -----------------------------------------
 
     def visit_program(self, node):
+        for item in node.items:                                  # the types, in program order:
+            if isinstance(item, SquadNode):                      # a field's squad is above it
+                item.accept(self)
         functions = [item for item in node.items if isinstance(item, FunctionNode)]
         for fn in functions:                                     # every signature first...
-            result = LLVM_TYPE[fn.return_type] if fn.return_type else ir.VoidType()
-            fn_type = ir.FunctionType(result, [LLVM_TYPE[p.type_name] for p in fn.params])
+            result = self.types[fn.return_type] if fn.return_type else ir.VoidType()
+            fn_type = ir.FunctionType(result, [self.types[p.type_name] for p in fn.params])
             self.fns[fn] = ir.Function(self.module, fn_type, name=FN_PREFIX + fn.name)
         for fn in functions:                                     # ...then the bodies
             fn.accept(self)
 
         main = ir.Function(self.module, ir.FunctionType(I32, []), name="main")
         self.begin_function(main, None)
-        self.statements([item for item in node.items if not isinstance(item, FunctionNode)])
+        self.statements([item for item in node.items if not isinstance(item, (FunctionNode, SquadNode))])
         if not self.builder.block.is_terminated:                 # the end of the program
             self.builder.ret(ir.Constant(I32, 0))
 
@@ -199,7 +219,7 @@ class CodeGen:
         self.begin_function(function, node)
         for param, arg in zip(node.params, function.args):      # a parameter is a copy in a slot
             arg.name = param.name
-            self.slots[param] = self.alloca_in_entry(LLVM_TYPE[param.type_name], param.name)
+            self.slots[param] = self.alloca_in_entry(self.types[param.type_name], param.name)
             self.builder.store(arg, self.slots[param])
         self.statements(node.body)
         if not self.builder.block.is_terminated:
@@ -208,15 +228,24 @@ class CodeGen:
             else:
                 self.builder.unreachable()                       # the semantic pass: every path left
 
+    def visit_squad(self, node):
+        struct_type = self.context.get_identified_type(f"squad.{node.name}")
+        # Every field type is built in or a squad above, so it is already in self.types.
+        struct_type.set_body(*(self.types[field.type_name] for field in node.fields))
+        self.types[node.name] = struct_type
+
     # -- statements: emit IR, return nothing --------------------------------
 
     def visit_decl(self, node):
-        slot = self.alloca_in_entry(LLVM_TYPE[node.type_name], node.name)
+        slot = self.alloca_in_entry(self.types[node.type_name], node.name)
         self.slots[node] = slot
-        self.builder.store(self.value(node.init, node.type_name), slot)
+        self.builder.store(self.value(node.init, node.type_name), slot)   # a whole object is one store too
 
     def visit_assign(self, node):
-        self.builder.store(self.value(node.value, node.decl.type_name), self.slots[node.decl])
+        ptr = self.slots[node.decl]
+        if node.indices:                                         # c.center.x post ...
+            ptr = self.gep(ptr, node.indices, name=chain(node.name, node.links))
+        self.builder.store(self.value(node.value, node.target_type), ptr)
 
     def visit_call_stmt(self, node):
         node.call.accept(self)
@@ -306,6 +335,17 @@ class CodeGen:
 
     def visit_var(self, node):
         return self.builder.load(self.slots[node.decl], name=node.name)
+
+    def visit_field(self, node):
+        name = chain(node.name, node.links)
+        return self.builder.load(self.gep(self.slots[node.decl], node.indices, name=name), name=name)
+
+    def visit_literal(self, node):
+        value = ir.Constant(self.types[node.type], ir.Undefined)   # nothing in it yet
+        for index, part in enumerate(node.values):               # field by field, by index
+            field_type = node.squad.fields[index].type_name
+            value = self.builder.insert_value(value, self.value(part, field_type), index)
+        return value
 
     def visit_int(self, node):
         return ir.Constant(LLVM_TYPE[node.type], node.value)    # reached only through value(): a constant

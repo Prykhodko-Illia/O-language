@@ -1,0 +1,1 @@
+compilation error: line 5:1: cannot post a whole Point to 'p': post to its fields, one by one

@@ -1,0 +1,6 @@
+squad Point {
+    sliding doze x no_bap
+}
+drill reset(Point p) {
+    p.x post 0 no_bap
+}

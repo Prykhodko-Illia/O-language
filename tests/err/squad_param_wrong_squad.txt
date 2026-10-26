@@ -1,0 +1,11 @@
+squad Point {
+    doze x no_bap
+}
+squad Size {
+    doze x no_bap
+}
+doze drill get(Point p) {
+    cuh p.x no_bap
+}
+Size s post Size{1} no_bap
+doze n post get(s) no_bap

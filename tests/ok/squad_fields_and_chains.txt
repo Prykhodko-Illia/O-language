@@ -1,0 +1,14 @@
+squad Point {
+    sliding doze x no_bap
+    sliding doze y no_bap
+}
+squad Circle {
+    sliding Point center no_bap
+    fawty r no_bap
+}
+sliding Circle c post Circle{Point{1, 2}, 5} no_bap
+air_out(c.center.x) no_bap
+air_out(c.r) no_bap
+c.center.y post c.center.y bump 40 no_bap
+air_out(c.center.y) no_bap
+scat c.center.x bump c.center.y no_bap

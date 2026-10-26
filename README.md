@@ -164,6 +164,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 | `no_bap` | end of a statement | `scat` | exit the program |
 | `on_the_guys( … )` | assert | `air_out( … )` | print |
 | `lowkey` | comment to the end of the line | `pab_on` | inverted line (see below) |
+| `squad Name { … }` | a structure: a type with fields | `a.b.c` | a field, through a chain |
 
 All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
 start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
@@ -267,6 +268,42 @@ fawty x post add(1, 2) double_back 3 no_bap
 add(x, x) no_bap
 ```
 
+### 👥 Squads: structures with fields
+
+`squad Name { fields }` declares a type of your own, at the top level, above every use of its name. Each field is
+`[sliding] type name no_bap`: tucked unless it says `sliding`, of a built-in type or a squad declared above (never
+the squad itself). An object is made with a **literal** -- the squad's name and one value per field, in field
+order -- and it is a value like any other: it initialises a variable, goes into a parameter, comes out of a drill.
+
+```
+squad Point {
+    sliding doze x no_bap
+    sliding doze y no_bap
+}
+squad Circle {
+    sliding Point center no_bap
+    fawty r no_bap
+}
+
+Point drill moved(Point p, doze dx) {
+    cuh Point{p.x bump dx, p.y} no_bap
+}
+
+sliding Circle c post Circle{Point{1, 2}, 5} no_bap      lowkey a literal inside a literal
+c.center.y post c.center.y bump 40 no_bap               lowkey a field, through a chain
+Point q post moved(c.center, 3) no_bap                  lowkey a copy goes in, a copy comes out
+air_out(q.x) no_bap                                     →  4
+```
+
+A field is read by name through a chain, `c.center.x`, as deep as the squads go. It is posted to only when the
+whole chain is `sliding`: the variable and every field on the way. Above, `c.center.y post …` works because `c`,
+`center` and `y` all are; with a tucked `Circle c`, or a tucked `center`, it is an error. A whole object is never
+posted to again (`p post q` is an error: post its fields); `Point q post p` declares a copy, and changing `p`
+afterwards leaves `q` as it was.
+
+The name of a squad is a type, so `Point p post …` is a declaration and `Point{…}` a literal, while any other
+name is a variable: in `spot flag { … }` the `{` still opens the block.
+
 ### 🔄 Unique feature: inverted lines — `pab_on`
 
 On the O you learn to read things backwards. Any declaration, assignment, `cuh` or `scat` can be written **back to
@@ -278,6 +315,8 @@ pab_on 5 post counter doze sliding        lowkey = sliding doze counter post 5 n
 pab_on counter bump 1 post counter        lowkey = counter post counter bump 1 no_bap
 pab_on 2 double_back 3 post big fawty     lowkey = fawty big post 2 double_back 3 no_bap
 pab_on 0 scat                             lowkey = scat 0 no_bap
+pab_on Point{3, 4} post p Point sliding   lowkey = sliding Point p post Point{3, 4} no_bap
+pab_on p.x bump 10 post p.y               lowkey = p.y post p.x bump 10 no_bap
 ```
 
 It is the one place where a newline means something: after a `pab_on`, the lexer emits an `eol` token at the end of
@@ -414,6 +453,19 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | `cuh` is only inside a drill; it carries a value of the drill's result type, or nothing when the drill returns nothing. | `function_with_return` | `cuh_at_top_level`, `cuh_wrong_type`, `cuh_value_in_void_drill`, `cuh_without_value` |
 | A drill with a result type leaves on every path: its body ends with `cuh` or `scat`, or with a `spot`/`pivot` whose two arms both leave. | `inverted_in_blocks` | `cuh_missing_on_a_path` |
 
+**Squads**
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| A squad is declared once, at the top level, above every use of its name, with at least one field; its fields have different names. | `squad_fields_and_chains` | `squad_declared_twice`, `field_declared_twice`, `squad_used_before_declared`, `squad_inside_block`, `empty_squad` |
+| A field's type is built in or a squad above -- never the squad itself. A field has no value of its own in the declaration. | `squad_literal_widens_and_nests` | `squad_contains_itself`, `field_with_a_value` |
+| A literal gives one value per field, in order, each of the field's type (a `doze` may go into a `fawty` field). | `squad_literal_widens_and_nests` | `literal_too_few_values`, `literal_too_many_values`, `literal_wrong_field_type`, `literal_fawty_into_doze_field` |
+| A chain names a field that exists at every link, and every link before the last is a squad. | `squad_fields_and_chains` | `unknown_field`, `field_of_a_doze` |
+| Posting through a chain needs every link `sliding`: the variable and each field. A parameter is tucked. | `squad_fields_and_chains`, `squad_inverted_lines` | `assign_through_tucked_object`, `assign_through_tucked_field`, `assign_field_of_parameter` |
+| A whole object is not posted to again; a declaration from one is a copy, and so is a squad going into a parameter or out of a drill. | `squad_copy_is_a_copy`, `squad_param_and_result`, `squad_in_a_loop_of_calls` | `assign_whole_object` |
+| A squad's type is its name: a `Point` goes only where a `Point` is expected. Squads are not compared, not used in arithmetic, not a value of `scat`. | `squad_param_and_result` | `squad_param_wrong_squad`, `compare_squads`, `squad_in_arithmetic`, `scat_a_squad` |
+| A squad's name is a type, never a drill or a variable: `Point` alone is not a value, and no drill is called `Point`. | `squad_name_and_spot_block` | `squad_name_without_literal`, `drill_named_like_squad` |
+
 **Constants** (the overflow check)
 
 | Rule | Follows | Breaks |
@@ -438,7 +490,8 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 |---|---|
 | lexer | an unknown byte (`+`, `=`, `/`, `:`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
 | parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block; a constant initialiser that overflows its type, or divides by zero; an inverted line that does not end with its line or does not end in `post name`, `cuh` or `scat` |
-| semantic pass | every rule of the tables above: a name not declared or declared twice, a post to a tucked variable, a type that does not fit, a wrong call, a misplaced or missing `cuh`, a constant that overflows or divides by zero |
+| parser (squads) | a squad inside a block or without fields; a field with a `post` value; a squad's name not followed by `{`; a type that is not a squad declared above |
+| semantic pass | every rule of the tables above: a name not declared or declared twice, a post to a tucked variable or through a tucked chain, a type that does not fit, a wrong call, a misplaced or missing `cuh`, an unknown field, a wrong literal, a squad that contains itself, a constant that overflows or divides by zero |
 
 ---
 

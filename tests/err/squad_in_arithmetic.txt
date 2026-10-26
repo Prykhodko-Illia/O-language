@@ -1,0 +1,5 @@
+squad Point {
+    doze x no_bap
+}
+Point a post Point{1} no_bap
+doze n post a bump 1 no_bap

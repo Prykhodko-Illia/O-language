@@ -7,12 +7,14 @@ flags -- `sliding` is a boolean, the braces, `post` and `no_bap` leave
 nothing behind, and an operator keeps both its word and the symbol it stands for.
 
     ASTNode
-    +-- ProgramNode        items: [FunctionNode | StmtNode]
+    +-- ProgramNode        items: [SquadNode | FunctionNode | StmtNode]
+    +-- SquadNode          name, fields: [FieldDeclNode]
+    +-- FieldDeclNode      name, type_name, mutable  -- also carries `index`, from the semantic pass
     +-- FunctionNode       name, params: [ParamNode], return_type (or None), body: [StmtNode]
     +-- ParamNode          name, type_name
     +-- StmtNode     (abstract)
     |   +-- DeclNode       name, type_name, mutable, init: ExprNode
-    |   +-- AssignNode     name, value: ExprNode
+    |   +-- AssignNode     name, links: [Link], value: ExprNode   -- c.center.x post 5
     |   +-- CallStmtNode   call: CallNode
     |   +-- IfNode         cond: ExprNode, then_body: [StmtNode], else_body: [StmtNode] or None
     |   +-- ReturnNode     value: ExprNode or None
@@ -23,13 +25,18 @@ nothing behind, and an operator keeps both its word and the symbol it stands for
         +-- BinOpNode      op (the word), symbol ('+', '-', '*', '/', '%', '==', '!='), left, right
         +-- CallNode       name, args: [ExprNode]
         +-- VarNode        name
+        +-- FieldNode      name, links: [Link]    -- c.center.x: the variable, then each field
+        +-- LiteralNode    type_name, values: [ExprNode]   -- Point{3, 4}: one value per field
         +-- IntNode        value
         +-- BoolNode       value (True / False)
         +-- StringNode     value   (only as the argument of air_out)
 
+A type is a name: "doze", "fawty", "line", or the name of a squad.
+
 Every node keeps the line and column of the token it came from, so the later stages
-can point at an error without having any tokens left. The tree holds names, numbers,
-flags and child nodes: never a token.
+can point at an error without having any tokens left. Each `.name` of a field chain is
+a Link with a position of its own, so an unknown field is reported at the field. The
+tree holds names, numbers, flags and child nodes: never a token.
 
 `accept(visitor)` calls the visitor method for that node kind -- visit_decl for a
 DeclNode, visit_binop for a BinOpNode -- so each walk over the tree (the semantic pass,
@@ -106,13 +113,29 @@ class ExprNode(ASTNode):
         decl = getattr(self, "decl", None)
         if decl is not None:
             out += f"  (declared at {decl.line}:{decl.col})"
+        if getattr(self, "indices", None):
+            out += f"  (field indices {self.indices})"
         return out
+
+
+class Link:
+    """One `.name` of a field chain, with the position of the name."""
+
+    def __init__(self, name, line, col):
+        self.name = name
+        self.line = line
+        self.col = col
+
+
+def chain(name, links):
+    """A chain as the program wrote it: c.center.x."""
+    return ".".join([name, *(link.name for link in links)])
 
 
 class ProgramNode(ASTNode):
     def __init__(self, line, col, items):
         super().__init__(line, col)
-        self.items = items                # [FunctionNode | StmtNode]
+        self.items = items                # [SquadNode | FunctionNode | StmtNode]
 
     def label(self):
         return "Program"
@@ -122,6 +145,39 @@ class ProgramNode(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_program(self)
+
+
+class SquadNode(ASTNode):
+    def __init__(self, line, col, name, fields):
+        super().__init__(line, col)       # position of the name
+        self.name = name
+        self.fields = fields              # [FieldDeclNode], at least one, in declaration order
+
+    def label(self):
+        return f"Squad {self.name}"
+
+    def children(self):
+        return self.fields
+
+    def accept(self, visitor):
+        return visitor.visit_squad(self)
+
+
+class FieldDeclNode(ASTNode):
+    def __init__(self, line, col, name, type_name, mutable):
+        super().__init__(line, col)       # position of the name
+        self.name = name
+        self.type_name = type_name        # "doze" | "fawty" | "line" | a squad declared above
+        self.mutable = mutable
+
+    def label(self):
+        return f"Field {self.name} {self.type_name} {'sliding' if self.mutable else 'tucked'}"
+
+    def note(self):
+        return f"  (index {self.index})" if hasattr(self, "index") else ""
+
+    def accept(self, visitor):
+        return visitor.visit_field_decl(self)
 
 
 class FunctionNode(ASTNode):
@@ -174,17 +230,23 @@ class DeclNode(StmtNode):
 
 
 class AssignNode(StmtNode):
-    def __init__(self, line, col, name, value):
+    def __init__(self, line, col, name, value, links=()):
         super().__init__(line, col)       # position of the name
         self.name = name
+        self.links = list(links)          # [Link]: empty for a variable, the fields for c.center.x
         self.value = value
 
     def label(self):
-        return f"Assign {self.name}"
+        return f"Assign {chain(self.name, self.links)}"
 
     def note(self):
         decl = getattr(self, "decl", None)
-        return f"  (declared at {decl.line}:{decl.col})" if decl is not None else ""
+        if decl is None:
+            return ""
+        out = f"  (declared at {decl.line}:{decl.col})"
+        if self.indices:
+            out += f"  (field indices {self.indices})"
+        return out
 
     def children(self):
         return [self.value]
@@ -338,6 +400,35 @@ class VarNode(ExprNode):
 
     def accept(self, visitor):
         return visitor.visit_var(self)
+
+
+class FieldNode(ExprNode):
+    def __init__(self, line, col, name, links):
+        super().__init__(line, col)       # position of the variable's name
+        self.name = name
+        self.links = links                # [Link], at least one
+
+    def label(self):
+        return f"Field access {chain(self.name, self.links)}"
+
+    def accept(self, visitor):
+        return visitor.visit_field(self)
+
+
+class LiteralNode(ExprNode):
+    def __init__(self, line, col, type_name, values):
+        super().__init__(line, col)       # position of the squad's name
+        self.type_name = type_name
+        self.values = values              # [ExprNode], one per field, in field order
+
+    def label(self):
+        return f"Literal {self.type_name} ({len(self.values)} values)"
+
+    def children(self):
+        return self.values
+
+    def accept(self, visitor):
+        return visitor.visit_literal(self)
 
 
 class IntNode(ExprNode):

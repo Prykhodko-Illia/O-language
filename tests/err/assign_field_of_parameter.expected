@@ -1,0 +1,1 @@
+compilation error: line 5:5: cannot post to 'p.x': 'p' is a parameter of 'reset', and parameters are tucked

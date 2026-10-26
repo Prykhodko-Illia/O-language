@@ -20,7 +20,8 @@
  *   "on_the_guys" "air_out"                        assert, print
  *   "no_bap"                                       end of a simple statement
  *   "pab_on"                                       start of an inverted line
- *   "{" "}" "(" ")" ","                            punctuation, one byte each
+ *   "squad"                                        a structure: a named type with fields
+ *   "{" "}" "(" ")" "," "."                        punctuation, one byte each
  *   ident     letters, digits and _, not starting with a digit, and not a keyword
  *   number    decimal digits, no sign, at most 9223372036854775807 (the fawty maximum)
  *   string    bytes between two '"' on one line; only air_out takes one
@@ -41,7 +42,13 @@
 
 program   ::= { item }
 
-item      ::= function | statement
+item      ::= squad | function | statement
+
+(* A squad: a named type with typed fields, each tucked or "sliding". Its name is a type
+ * from the "{" on, everywhere below it. *)
+squad     ::= "squad" ident "{" field { field } "}"
+
+field     ::= [ "sliding" ] type ident "no_bap"
 
 function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
 
@@ -53,9 +60,13 @@ statement ::= decl | assign | call_stmt | if | return | exit | assert | print | 
 
 decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
 
-type      ::= "doze" | "fawty" | "line"
+type      ::= "doze" | "fawty" | "line" | squad_name
 
-assign    ::= ident "post" expr "no_bap"
+squad_name ::= ident                             (* the name of a squad declared above *)
+
+assign    ::= place "post" expr "no_bap"
+
+place     ::= ident { "." ident }                (* a variable, then a field per link *)
 
 call_stmt ::= call "no_bap"
 
@@ -77,7 +88,7 @@ print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
  *     pab_on merch cuh                is    cuh merch no_bap
  *     pab_on 0 scat                   is    scat 0 no_bap
  *)
-inverted  ::= "pab_on" expr ( "post" ident [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
+inverted  ::= "pab_on" expr ( "post" place [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
 
 expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
 
@@ -85,7 +96,9 @@ arith     ::= term { ( "bump" | "tuck_in" ) term }
 
 term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
 
-factor    ::= number | "merch" | "woof" | call | ident | "(" expr ")"
+factor    ::= number | "merch" | "woof" | literal | call | place | "(" expr ")"
+
+literal   ::= squad_name "{" expr { "," expr } "}"   (* one value per field, in order *)
 
 call      ::= ident "(" [ expr { "," expr } ] ")"
 
@@ -112,6 +125,10 @@ comment_byte ::= (* any byte except newline *)
 
 newline   ::= (* the byte 10 *)
 
+(* "." is one byte of its own, like "(": c.center.x is five tokens, c . center . x, and
+ * "10.5" is the number 10, a ".", and the number 5 -- which no rule accepts.
+ *)
+
 (* Spaces, tabs, carriage returns, newlines and comments may stand between any two tokens
  * and are dropped by the lexer. A keyword, a name or a number ends at the first byte that
  * cannot continue it, so "tuck_in" is one token and "bump2" is a name.
@@ -131,4 +148,10 @@ newline   ::= (* the byte 10 *)
  * Two pairs of rules share their first token, C++ style, and the parser eats that token and
  * decides by the next one: after a type, "drill" starts a function and a name starts a
  * declaration; after a name, "post" starts an assignment and "(" a call.
+ *
+ * squad_name and a plain ident are both identifiers: the parser tells them apart by the
+ * names of the squads declared so far. Point p post ... is a declaration because Point
+ * is a squad, Point{3, 4} is a literal for the same reason, and in spot flag { ... } the
+ * "{" opens the block because flag is not. In "pab_on value post place type", a type
+ * after the place makes it a declaration, so that place is a plain name: no ".".
  *)
