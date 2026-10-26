@@ -46,6 +46,15 @@ in registers: it starts as undef and each field goes in with insertvalue, by ind
 whole object moves as one value -- a load of %"squad.Point" and a store of it -- which is
 how Point q post p copies, and how a squad goes into a parameter and out of a drill.
 
+A member function is a function of the module named after its squad and itself,
+@"Point.lift", whose first parameter is a pointer to the object it is called on -- `this`.
+The object is passed by address, so the function changes the caller's object, not a copy.
+A pointer to an object is exactly what the alloca of a squad variable is, so `this` needs
+no slot of its own: it stands in the slot table for the function's ThisParam, and a field
+x in the body -- indices [0] on this -- is the same gep as p.x on a variable. A call
+passes the address of its object: the variable's alloca, or a gep into it for
+c.center.lift(1); a member function calling one of its own squad's passes `this` on.
+
 Every drill becomes a function of the module named @"drill.NAME": a name of the program
 cannot hold a '.', so drill main or drill printf never meets the runtime's main and
 printf. All of them are declared before any body is built, so a call can name a drill
@@ -201,11 +210,13 @@ class CodeGen:
             if isinstance(item, SquadNode):                      # a field's squad is above it
                 item.accept(self)
         functions = [item for item in node.items if isinstance(item, FunctionNode)]
+        methods = [method for item in node.items if isinstance(item, SquadNode) for method in item.methods]
         for fn in functions:                                     # every signature first...
-            result = self.types[fn.return_type] if fn.return_type else ir.VoidType()
-            fn_type = ir.FunctionType(result, [self.types[p.type_name] for p in fn.params])
-            self.fns[fn] = ir.Function(self.module, fn_type, name=FN_PREFIX + fn.name)
-        for fn in functions:                                     # ...then the bodies
+            self.fns[fn] = self.declare(fn, [], FN_PREFIX + fn.name)
+        for method in methods:                                   # (a squad name has no '.': no clash)
+            this_type = self.types[method.squad].as_pointer()    # the object, by address
+            self.fns[method] = self.declare(method, [this_type], f"{method.squad}.{method.name}")
+        for fn in [*methods, *functions]:                        # ...then the bodies
             fn.accept(self)
 
         main = ir.Function(self.module, ir.FunctionType(I32, []), name="main")
@@ -214,10 +225,21 @@ class CodeGen:
         if not self.builder.block.is_terminated:                 # the end of the program
             self.builder.ret(ir.Constant(I32, 0))
 
+    def declare(self, fn, leading, name):
+        """The ir.Function for `fn`: `leading` parameter types, then one per parameter."""
+        result = self.types[fn.return_type] if fn.return_type else ir.VoidType()
+        fn_type = ir.FunctionType(result, [*leading, *(self.types[p.type_name] for p in fn.params)])
+        return ir.Function(self.module, fn_type, name=name)
+
     def visit_function(self, node):
         function = self.fns[node]
         self.begin_function(function, node)
-        for param, arg in zip(node.params, function.args):      # a parameter is a copy in a slot
+        args = list(function.args)
+        if node.squad is not None:                               # a member function: this first
+            this = args.pop(0)
+            this.name = "this"
+            self.slots[node.this] = this                         # already a pointer: no slot of its own
+        for param, arg in zip(node.params, args):               # a parameter is a copy in a slot
             arg.name = param.name
             self.slots[param] = self.alloca_in_entry(self.types[param.type_name], param.name)
             self.builder.store(arg, self.slots[param])
@@ -242,10 +264,7 @@ class CodeGen:
         self.builder.store(self.value(node.init, node.type_name), slot)   # a whole object is one store too
 
     def visit_assign(self, node):
-        ptr = self.slots[node.decl]
-        if node.indices:                                         # c.center.x post ...
-            ptr = self.gep(ptr, node.indices, name=chain(node.name, node.links))
-        self.builder.store(self.value(node.value, node.target_type), ptr)
+        self.builder.store(self.value(node.value, node.target_type), self.address_of(node))
 
     def visit_call_stmt(self, node):
         node.call.accept(self)
@@ -329,16 +348,32 @@ class CodeGen:
         return self.builder.srem(lhs, rhs, name=node.op)
 
     def visit_call(self, node):
-        args = [self.value(arg, param.type_name)                 # a doze into a fawty parameter
+        this = []
+        if node.fn.squad is not None:                            # d2() in Point: on the same object
+            this = [self.slots[self.current_fn.this]]
+        return self.builder.call(self.fns[node.fn], [*this, *self.args(node)])
+
+    def visit_member_call(self, node):
+        this = self.address_of(node.target)                      # the object, by address
+        return self.builder.call(self.fns[node.fn], [this, *self.args(node)])
+
+    def args(self, node):
+        return [self.value(arg, param.type_name)                 # a doze into a fawty parameter
                 for param, arg in zip(node.fn.params, node.args)]
-        return self.builder.call(self.fns[node.fn], args)
+
+    def address_of(self, node):
+        """Where a variable, a field chain or a post target lives: its slot -- or `this`
+        for a field of the object -- then a gep along the chain."""
+        ptr = self.slots[node.decl]
+        if node.indices:
+            ptr = self.gep(ptr, node.indices, name=chain(node.name, getattr(node, "links", [])))
+        return ptr
 
     def visit_var(self, node):
-        return self.builder.load(self.slots[node.decl], name=node.name)
+        return self.builder.load(self.address_of(node), name=node.name)   # x in a member: this.x
 
     def visit_field(self, node):
-        name = chain(node.name, node.links)
-        return self.builder.load(self.gep(self.slots[node.decl], node.indices, name=name), name=name)
+        return self.builder.load(self.address_of(node), name=chain(node.name, node.links))
 
     def visit_literal(self, node):
         value = ir.Constant(self.types[node.type], ir.Undefined)   # nothing in it yet

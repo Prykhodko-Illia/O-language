@@ -1,0 +1,18 @@
+squad Parity {
+    doze unused no_bap
+    line drill even(doze n) {
+        spot n in_tune 0 {
+            cuh merch no_bap
+        }
+        cuh odd(n tuck_in 1) no_bap
+    }
+    line drill odd(doze n) {
+        spot n in_tune 0 {
+            cuh woof no_bap
+        }
+        cuh even(n tuck_in 1) no_bap
+    }
+}
+Parity p post Parity{0} no_bap
+air_out(p.even(10)) no_bap
+air_out(p.odd(7)) no_bap

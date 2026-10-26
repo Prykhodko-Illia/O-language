@@ -165,6 +165,7 @@ failed. Every test is named after what it covers: `if_else_nested.txt`, `unclose
 | `on_the_guys( … )` | assert | `air_out( … )` | print |
 | `lowkey` | comment to the end of the line | `pab_on` | inverted line (see below) |
 | `squad Name { … }` | a structure: a type with fields | `a.b.c` | a field, through a chain |
+| `obj.f( … )` | a member function call | | |
 
 All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
 start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
@@ -303,6 +304,47 @@ afterwards leaves `q` as it was.
 
 The name of a squad is a type, so `Point p post …` is a declaration and `Point{…}` a literal, while any other
 name is a variable: in `spot flag { … }` the `{` still opens the block.
+
+### 🧠 Member functions
+
+A squad's member functions come after its fields, written like any drill. They are called on an object --
+`p.d2()`, `c.center.lift(1)` -- or by name inside another member function of the same squad, on the same object.
+
+```
+squad Counter {
+    sliding doze n no_bap
+    doze step no_bap
+
+    drill tick() {
+        n post n bump step no_bap            lowkey writes a field: tick is mutating
+    }
+    drill twice() {
+        tick() no_bap                        lowkey calls a mutating one on its object: mutating too
+        tick() no_bap
+    }
+    doze drill now() {
+        cuh n no_bap                         lowkey only reads: fine on any Counter
+    }
+}
+
+sliding Counter c post Counter{0, 5} no_bap
+c.twice() no_bap
+air_out(c.now()) no_bap                      →  10
+
+Counter fixed post Counter{1, 1} no_bap
+air_out(fixed.now()) no_bap                  →  1
+fixed.tick() no_bap                          →  compilation error: … cannot call 'tick' on 'fixed': it changes its object, and 'fixed' is not sliding
+```
+
+**How a name is found inside a member function.** First among its parameters and its own variables (the
+innermost block wins), then among the fields of its squad, and nowhere else: a parameter or a variable with the
+same name hides a field, and a top-level variable is never visible, as in any drill. A call `f(…)` inside it
+looks among the member functions of its squad first, then among the drills.
+
+**Which member functions change their object.** One that posts to a field of its object, or calls a mutating
+member function on its object or on a field of it -- through any number of calls, cycles included. Such a member
+function is called only on an object reached through `sliding` links: the variable and every field on the way.
+The object is passed by address, so the change is seen by the caller.
 
 ### 🔄 Unique feature: inverted lines — `pab_on`
 
@@ -465,6 +507,17 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | A whole object is not posted to again; a declaration from one is a copy, and so is a squad going into a parameter or out of a drill. | `squad_copy_is_a_copy`, `squad_param_and_result`, `squad_in_a_loop_of_calls` | `assign_whole_object` |
 | A squad's type is its name: a `Point` goes only where a `Point` is expected. Squads are not compared, not used in arithmetic, not a value of `scat`. | `squad_param_and_result` | `squad_param_wrong_squad`, `compare_squads`, `squad_in_arithmetic`, `scat_a_squad` |
 | A squad's name is a type, never a drill or a variable: `Point` alone is not a value, and no drill is called `Point`. | `squad_name_and_spot_block` | `squad_name_without_literal`, `drill_named_like_squad` |
+
+**Member functions**
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| Inside a member function a name is looked up among its parameters and variables, then the fields of its squad, then nowhere: a parameter or a variable hides a field, a top-level variable is never seen. | `member_name_lookup` | `member_unknown_name`, `member_sees_no_global` |
+| A call `f(…)` inside a member function looks among the member functions of its squad first, then the drills. | `member_name_lookup`, `member_calls_in_a_cycle` | `call_undeclared_drill` |
+| A member function is called on an object of a squad that declares it, with one argument per parameter of its type. | `member_d2_like_the_pdf`, `member_through_a_chain` | `member_unknown`, `member_on_a_doze`, `member_args_too_many`, `member_args_too_few`, `member_arg_wrong_type` |
+| A member function leaves with a value of its result type, like any drill; it posts only to `sliding` fields. | `member_d2_like_the_pdf` | `member_cuh_wrong_type`, `member_assigns_tucked_field` |
+| The fields come first; a field and a member function do not share a name, nor do two member functions; a member function is never `sliding`. | `member_changes_a_sliding_object` | `field_after_member`, `member_named_like_field`, `member_declared_twice`, `sliding_member` |
+| A member function that posts to a field, or calls a mutating one on its object or a field of it, is mutating; it is called only through `sliding` links. A reading one is called on any object. | `member_changes_a_sliding_object`, `member_through_a_chain`, `member_reads_on_a_tucked_object` | `mutating_on_tucked_object`, `mutating_through_another_member`, `mutating_through_tucked_field`, `mutating_on_a_parameter`, `mutating_on_tucked_field_inside_member` |
 
 **Constants** (the overflow check)
 

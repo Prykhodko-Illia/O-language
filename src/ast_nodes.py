@@ -8,10 +8,12 @@ nothing behind, and an operator keeps both its word and the symbol it stands for
 
     ASTNode
     +-- ProgramNode        items: [SquadNode | FunctionNode | StmtNode]
-    +-- SquadNode          name, fields: [FieldDeclNode]
+    +-- SquadNode          name, fields: [FieldDeclNode], methods: [FunctionNode]
     +-- FieldDeclNode      name, type_name, mutable  -- also carries `index`, from the semantic pass
-    +-- FunctionNode       name, params: [ParamNode], return_type (or None), body: [StmtNode]
+    +-- FunctionNode       name, params: [ParamNode], return_type (or None), body: [StmtNode],
+    |                      squad (the squad's name for a member function, else None)
     +-- ParamNode          name, type_name
+    +-- ThisParam          type_name  -- the object a member function is called on (semantic pass)
     +-- StmtNode     (abstract)
     |   +-- DeclNode       name, type_name, mutable, init: ExprNode
     |   +-- AssignNode     name, links: [Link], value: ExprNode   -- c.center.x post 5
@@ -24,6 +26,7 @@ nothing behind, and an operator keeps both its word and the symbol it stands for
     +-- ExprNode     (abstract)
         +-- BinOpNode      op (the word), symbol ('+', '-', '*', '/', '%', '==', '!='), left, right
         +-- CallNode       name, args: [ExprNode]
+        +-- MemberCallNode target: VarNode | FieldNode, name, args  -- c.center.lift(1)
         +-- VarNode        name
         +-- FieldNode      name, links: [Link]    -- c.center.x: the variable, then each field
         +-- LiteralNode    type_name, values: [ExprNode]   -- Point{3, 4}: one value per field
@@ -101,6 +104,13 @@ class StmtNode(ASTNode):
         return out
 
 
+def where(decl):
+    """Where a name was declared, for --ast-checked: a field of the object has no line."""
+    if isinstance(decl, ThisParam):
+        return "a field of the object"
+    return f"declared at {decl.line}:{decl.col}"
+
+
 class ExprNode(ASTNode):
     """An expression: it produces a value."""
 
@@ -112,7 +122,7 @@ class ExprNode(ASTNode):
             out += f" = {self.const}"
         decl = getattr(self, "decl", None)
         if decl is not None:
-            out += f"  (declared at {decl.line}:{decl.col})"
+            out += f"  ({where(decl)})"
         if getattr(self, "indices", None):
             out += f"  (field indices {self.indices})"
         return out
@@ -148,16 +158,17 @@ class ProgramNode(ASTNode):
 
 
 class SquadNode(ASTNode):
-    def __init__(self, line, col, name, fields):
+    def __init__(self, line, col, name, fields, methods):
         super().__init__(line, col)       # position of the name
         self.name = name
         self.fields = fields              # [FieldDeclNode], at least one, in declaration order
+        self.methods = methods            # [FunctionNode], each with squad == name
 
     def label(self):
         return f"Squad {self.name}"
 
     def children(self):
-        return self.fields
+        return [*self.fields, *self.methods]
 
     def accept(self, visitor):
         return visitor.visit_squad(self)
@@ -181,15 +192,23 @@ class FieldDeclNode(ASTNode):
 
 
 class FunctionNode(ASTNode):
-    def __init__(self, line, col, name, params, return_type, body):
+    def __init__(self, line, col, name, params, return_type, body, squad=None):
         super().__init__(line, col)       # position of the name
         self.name = name
         self.params = params              # [ParamNode]
-        self.return_type = return_type    # "doze" | "fawty" | "line" | None
+        self.return_type = return_type    # "doze" | "fawty" | "line" | a squad | None
         self.body = body                  # [StmtNode], at least one
+        self.squad = squad                # the squad's name for a member function, else None
 
     def label(self):
+        if self.squad is not None:
+            return f"Member {self.name} of {self.squad} returns {self.return_type or 'nothing'}"
         return f"Function {self.name} returns {self.return_type or 'nothing'}"
+
+    def note(self):
+        if not hasattr(self, "mutating"):
+            return ""
+        return "  (mutating: changes its object)" if self.mutating else "  (reads its object only)"
 
     def children(self):
         return [*self.params, Group("Body", self.body)]
@@ -209,6 +228,18 @@ class ParamNode(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_param(self)
+
+
+class ThisParam:
+    """The object a member function is called on: made by the semantic pass, never written
+    in a program. A field named in the body resolves to it, with the field first in the
+    chain; the code generator gives it the function's first parameter, a pointer."""
+
+    mutable = True                        # whether a write is allowed is decided at each call
+    line = col = 0
+
+    def __init__(self, type_name):
+        self.type_name = type_name
 
 
 class DeclNode(StmtNode):
@@ -243,7 +274,7 @@ class AssignNode(StmtNode):
         decl = getattr(self, "decl", None)
         if decl is None:
             return ""
-        out = f"  (declared at {decl.line}:{decl.col})"
+        out = f"  ({where(decl)})"
         if self.indices:
             out += f"  (field indices {self.indices})"
         return out
@@ -400,6 +431,28 @@ class VarNode(ExprNode):
 
     def accept(self, visitor):
         return visitor.visit_var(self)
+
+
+def written(target):
+    """A call target as the program wrote it: p, c.center."""
+    return chain(target.name, getattr(target, "links", []))
+
+
+class MemberCallNode(ExprNode):
+    def __init__(self, line, col, target, name, args):
+        super().__init__(line, col)       # position of the member function's name
+        self.target = target              # VarNode | FieldNode: the object
+        self.name = name
+        self.args = args                  # [ExprNode]
+
+    def label(self):
+        return f"Chain {written(self.target)} ends in member call {self.name} ({len(self.args)} args)"
+
+    def children(self):
+        return [self.target, *self.args]
+
+    def accept(self, visitor):
+        return visitor.visit_member_call(self)
 
 
 class FieldNode(ExprNode):

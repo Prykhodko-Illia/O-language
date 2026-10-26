@@ -1,0 +1,20 @@
+squad Counter {
+    sliding doze n no_bap
+    doze step no_bap
+
+    drill tick() {
+        n post n bump step no_bap
+    }
+    drill twice() {
+        tick() no_bap
+        tick() no_bap
+    }
+    doze drill now() {
+        cuh n no_bap
+    }
+}
+sliding Counter c post Counter{0, 5} no_bap
+c.tick() no_bap
+air_out(c.now()) no_bap
+c.twice() no_bap
+air_out(c.n) no_bap

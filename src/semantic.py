@@ -77,6 +77,37 @@ The squad rules:
     out of a drill as a copy too;
   * squads are not compared, not used in arithmetic, and not a value of scat.
 
+A member function is checked like a drill, with its squad around it: its own stack of
+parameters and variables, and nothing of the top level. A name in none of its frames may
+still be a field of the object it is called on: x means this.x, so the name resolves to
+the function's ThisParam with the field first in the chain. A call f(...) in its body
+looks among the member functions of the same squad first, then among the drills.
+
+The mutation rule needs every member body at once. A member function is mutating when it
+posts to a field of its object, or calls a mutating member function on its object or on
+one of its fields -- and member functions may call each other in a cycle. So the member
+bodies are checked first, each noting whether it writes a field and which member
+functions it calls on its own object; then the mutating ones are marked: first those
+that write a field, then, again and again, every one that calls a marked one, until a
+pass marks nothing new. Only then is a member call inside a member body checked against
+the rule; the drills and the top level come after, so their member calls are checked on
+the spot. A mutating member function is called only through a chain whose every link is
+sliding: the variable and each field on the way.
+
+The member function rules:
+  * a member function is called on an object: obj.f(args), c.center.f(args), or f(args)
+    inside another member function of the same squad, on the same object;
+  * it takes one argument per parameter, each of the parameter's type, like a drill;
+  * inside it, a name is looked up among its parameters and variables first (the
+    innermost block wins), then among the fields of its squad, and nowhere else: a
+    parameter or a variable hides a field of the same name, and a top-level variable is
+    never visible;
+  * a call inside it looks among the member functions of its squad first, then the drills;
+  * a field and a member function of one squad do not share a name, nor do two member
+    functions;
+  * a mutating member function -- one that posts to a field, or calls a mutating one on its
+    object or a field of it -- is called only on an object reached through sliding links.
+
 The drill rules:
   * cuh is only inside a drill; it carries a value of the result type, or nothing in a
     drill that returns nothing;
@@ -100,7 +131,8 @@ one number of the type it lands in, never as an addition that could overflow on 
 way. Everything that is not constant is checked when the program runs.
 """
 
-from .ast_nodes import DeclNode, ExitNode, FunctionNode, IfNode, ParamNode, ReturnNode, SquadNode, StringNode, chain
+from .ast_nodes import (DeclNode, ExitNode, FunctionNode, IfNode, Link, ParamNode, ReturnNode, SquadNode,
+                        StringNode, ThisParam, chain, written)
 from .errors import CompileError, error_at
 from .parser import RANGES
 
@@ -154,6 +186,8 @@ class SemanticChecker:
         self.squads = {}                  # name -> SquadNode, every one before anything else
         self.current_fn = None            # the FunctionNode whose body is being checked, or None
         self.top_level_names = set()      # names the top level declares, to explain a drill's error
+        self.mutation_known = False       # every member function is marked mutating or not
+        self.deferred = []                # member calls in member bodies, checked once it is
 
     def run(self, program):
         program.accept(self)
@@ -166,13 +200,22 @@ class SemanticChecker:
                 return frame[name]
         return None
 
-    def lookup(self, node, name):
+    def lookup(self, node, name, links):
+        """The declaration `name` means here, and the chain from it: in a member function, a
+        name in no frame may be a field of the object -- x is this.x."""
         decl = self.find(name)
         if decl is not None:
-            return decl
-        if self.current_fn is not None and name in self.top_level_names:
-            raise error_at(node, f"drill '{self.current_fn.name}' cannot see the top-level variable "
+            return decl, links
+        fn = self.current_fn
+        if fn is not None and fn.squad is not None:
+            field = named(self.squads[fn.squad].fields, name)
+            if field is not None:
+                return fn.this, [Link(name, node.line, node.col), *links]
+        if fn is not None and name in self.top_level_names:
+            raise error_at(node, f"drill '{qualified(fn)}' cannot see the top-level variable "
                                  f"'{name}': a drill sees only its parameters and its own variables")
+        if fn is not None and fn.squad is not None:
+            raise error_at(node, f"'{name}' is not a parameter, a variable or a field of '{fn.squad}'")
         raise error_at(node, f"variable '{name}' is used before its declaration")
 
     def declare(self, node):
@@ -227,31 +270,39 @@ class SemanticChecker:
         return type_name
 
     def walk_chain(self, node, write):
-        """Follow node.name, then node.links; store decl and indices on the node and return
-        the type at the end. With `write`, every link must be sliding."""
-        decl = self.lookup(node, node.name)
-        target = chain(node.name, node.links)
+        """Follow node.name, then its links; store decl and indices on the node and return
+        the type at the end. With `write`, every link must be sliding. Without it, the first
+        link that is not is kept in node.tucked_link, for the mutation rule."""
+        written_links = getattr(node, "links", [])
+        decl, links = self.lookup(node, node.name, written_links)
+        target = chain(node.name, written_links)
         if write and isinstance(decl, ParamNode):
-            who = "it" if not node.links else f"'{node.name}'"
+            who = "it" if not links else f"'{node.name}'"
             raise error_at(node, f"cannot post to '{target}': {who} is a parameter of "
-                                 f"'{self.current_fn.name}', and parameters are tucked")
+                                 f"'{qualified(self.current_fn)}', and parameters are tucked")
         if write and not decl.mutable:
-            if not node.links:
+            if not links:
                 raise error_at(node, f"cannot post to '{node.name}': it is tucked, "
                                      f"declare it 'sliding {decl.type_name} {node.name}' to change it")
             raise error_at(node, f"cannot post to '{target}': '{node.name}' is tucked")
-        type_name, path, indices = decl.type_name, node.name, []
-        for link in node.links:
+        if write and isinstance(decl, ThisParam):
+            self.current_fn.assigns_field = True       # it changes its object: mutating
+        tucked = isinstance(decl, ParamNode) or not decl.mutable
+        node.tucked_link = node.name if tucked else None
+        type_name, path, indices = decl.type_name, None if isinstance(decl, ThisParam) else node.name, []
+        for link in links:
             squad = self.squads.get(type_name)
             if squad is None:
                 raise error_at(link, f"'{path}' is {type_name}, not a squad: it has no field '{link.name}'")
-            field = next((f for f in squad.fields if f.name == link.name), None)
+            field = named(squad.fields, link.name)
             if field is None:
                 raise error_at(link, f"squad '{squad.name}' has no field '{link.name}'")
-            path += "." + link.name
+            path = link.name if path is None else f"{path}.{link.name}"
             if write and not field.mutable:
                 raise error_at(link, f"cannot post to '{target}': field '{link.name}' of "
                                      f"{squad.name} is tucked")
+            if not field.mutable and node.tucked_link is None:
+                node.tucked_link = path
             indices.append(field.index)
             type_name = field.type_name
         node.decl, node.indices = decl, indices
@@ -267,9 +318,35 @@ class SemanticChecker:
         for item in node.items:           # then every signature...
             if isinstance(item, FunctionNode):
                 self.declare_fn(item)
+        methods = [method for squad in self.squads.values() for method in squad.methods]
+        for method in methods:            # ...then the member bodies, for the mutation rule,
+            method.accept(self)
+        self.mark_mutating(methods)
+        self.mutation_known = True
+        for call in self.deferred:
+            self.check_mutation(call)
         for item in node.items:           # ...then everything else in program order
             if not isinstance(item, SquadNode):
                 item.accept(self)
+
+    def mark_mutating(self, methods):
+        """Mark the member functions that change their object: those that post to a field,
+        then every one that calls a marked one on its object or a field of it, until no
+        pass marks a new one -- calls may go round in a cycle, so one pass is not enough."""
+        for method in methods:
+            method.mutating = method.assigns_field
+        changed = True
+        while changed:
+            changed = False
+            for method in methods:
+                if not method.mutating and any(callee.mutating for callee in method.calls_on_self):
+                    method.mutating = changed = True
+
+    def check_mutation(self, node):
+        """A mutating member function is called only through a chain of sliding links."""
+        if node.fn.mutating and node.tucked_link is not None:
+            raise error_at(node, f"cannot call '{node.name}' on '{node.object}': it changes its object, "
+                                 f"and '{node.tucked_link}' is not sliding")
 
     def visit_squad(self, node):
         if node.name in self.squads:
@@ -284,6 +361,17 @@ class SemanticChecker:
                                       f"would hold a {node.name}, which holds a {node.name}, ...")
             seen.add(field.name)
             field.index = index
+        methods = set()
+        for method in node.methods:
+            if method.name in seen:
+                raise error_at(method, f"squad '{node.name}' already has a field '{method.name}': "
+                                       f"a member function cannot have the same name")
+            if method.name in methods:
+                raise error_at(method, f"squad '{node.name}' already has a member function '{method.name}'")
+            methods.add(method.name)
+            self.check_params(method)
+            method.this = ThisParam(node.name)
+            method.assigns_field, method.calls_on_self = False, []
         self.squads[node.name] = node
 
     def visit_field_decl(self, node):
@@ -295,12 +383,15 @@ class SemanticChecker:
         if node.name in self.fns:
             prev = self.fns[node.name]
             raise error_at(node, f"drill '{node.name}' is already declared at line {prev.line}:{prev.col}")
+        self.check_params(node)
+        self.fns[node.name] = node
+
+    def check_params(self, node):
         names = set()
         for param in node.params:
             if param.name in names:
-                raise error_at(param, f"drill '{node.name}' already has a parameter '{param.name}'")
+                raise error_at(param, f"drill '{qualified(node)}' already has a parameter '{param.name}'")
             names.add(param.name)
-        self.fns[node.name] = node
 
     def visit_function(self, node):
         # A fresh stack: the parameters, and the body's lines in the same frame. Nothing of
@@ -311,7 +402,7 @@ class SemanticChecker:
         for stmt in node.body:
             stmt.accept(self)
         if node.return_type is not None and not leaves(node.body):
-            raise error_at(node, f"drill '{node.name}' can reach its end without 'cuh': "
+            raise error_at(node, f"drill '{qualified(node)}' can reach its end without 'cuh': "
                                  f"it must leave with a {node.return_type}")
         self.scopes, self.current_fn = outer, None
 
@@ -351,11 +442,11 @@ class SemanticChecker:
             raise error_at(node, "'cuh' leaves a drill, and this is the top level: use 'scat' to end the program")
         if fn.return_type is None:
             if node.value is not None:
-                raise error_at(node.value, f"drill '{fn.name}' returns nothing, but 'cuh' carries a value")
+                raise error_at(node.value, f"drill '{qualified(fn)}' returns nothing, but 'cuh' carries a value")
             return
         if node.value is None:
-            raise error_at(node, f"drill '{fn.name}' returns {fn.return_type}: 'cuh' needs a value")
-        self.check_value(node.value, fn.return_type, f"the value of 'cuh' in '{fn.name}'")
+            raise error_at(node, f"drill '{qualified(fn)}' returns {fn.return_type}: 'cuh' needs a value")
+        self.check_value(node.value, fn.return_type, f"the value of 'cuh' in '{qualified(fn)}'")
 
     def visit_exit(self, node):
         if node.value is not None:
@@ -398,16 +489,51 @@ class SemanticChecker:
         return node.type
 
     def visit_call(self, node):
-        fn = self.fns.get(node.name)
-        if fn is None:
-            raise error_at(node, f"drill '{node.name}' is not declared")
-        if len(node.args) != len(fn.params):
-            raise error_at(node, f"drill '{fn.name}' takes {plural(len(fn.params), 'argument')}, "
-                                 f"got {len(node.args)}")
-        for param, arg in zip(fn.params, node.args):
-            self.check_value(arg, param.type_name, f"argument '{param.name}' of '{fn.name}'")
+        current = self.current_fn
+        method = None
+        if current is not None and current.squad is not None:
+            method = named(self.squads[current.squad].methods, node.name)
+        if method is not None:            # d2() inside Point: d2 on the same object
+            current.calls_on_self.append(method)
+            fn = method
+        else:
+            fn = self.fns.get(node.name)
+            if fn is None:
+                raise error_at(node, f"drill '{node.name}' is not declared")
+        self.check_args(node, fn)
         node.fn, node.type, node.const = fn, fn.return_type, None
         return node.type
+
+    def visit_member_call(self, node):
+        target = node.target
+        type_name = self.walk_chain(target, write=False)
+        target.type, target.const = type_name, None
+        node.object = written(target)
+        squad = self.squads.get(type_name)
+        if squad is None:
+            raise error_at(node, f"'{node.object}' is {type_name}, not a squad: "
+                                 f"it has no member function '{node.name}'")
+        fn = named(squad.methods, node.name)
+        if fn is None:
+            raise error_at(node, f"squad '{squad.name}' has no member function '{node.name}'")
+        self.check_args(node, fn)
+        node.tucked_link = target.tucked_link
+        if isinstance(target.decl, ThisParam):    # on a field of its own object
+            self.current_fn.calls_on_self.append(fn)
+        node.fn, node.type, node.const = fn, fn.return_type, None
+        if self.mutation_known:
+            self.check_mutation(node)
+        else:                             # in a member body: not every function is marked yet
+            self.deferred.append(node)
+        return node.type
+
+    def check_args(self, node, fn):
+        """One argument per parameter, each assignable to the parameter's type."""
+        if len(node.args) != len(fn.params):
+            raise error_at(node, f"drill '{qualified(fn)}' takes {plural(len(fn.params), 'argument')}, "
+                                 f"got {len(node.args)}")
+        for param, arg in zip(fn.params, node.args):
+            self.check_value(arg, param.type_name, f"argument '{param.name}' of '{qualified(fn)}'")
 
     def visit_field(self, node):
         node.type, node.const = self.walk_chain(node, write=False), None
@@ -424,9 +550,8 @@ class SemanticChecker:
         return node.type
 
     def visit_var(self, node):
-        decl = self.lookup(node, node.name)
-        node.decl, node.type, node.indices = decl, decl.type_name, []
-        node.const = getattr(decl, "const", None)   # a tucked variable with a constant value
+        node.type = self.walk_chain(node, write=False)    # x in a member function may be this.x
+        node.const = getattr(node.decl, "const", None)    # a tucked variable with a constant value
         return node.type
 
     def visit_int(self, node):
@@ -451,6 +576,16 @@ def top_level_decls(items):
         elif isinstance(item, IfNode):
             yield from top_level_decls(item.then_body)
             yield from top_level_decls(item.else_body or [])
+
+
+def named(nodes, name):
+    """The node of `nodes` -- fields or member functions -- called `name`, or None."""
+    return next((node for node in nodes if node.name == name), None)
+
+
+def qualified(fn):
+    """A drill's name in a message: Point.lift for a member function."""
+    return f"{fn.squad}.{fn.name}" if fn.squad is not None else fn.name
 
 
 def plural(count, word):

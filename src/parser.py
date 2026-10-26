@@ -4,7 +4,7 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
 
   program   ::= { item }
   item      ::= squad | function | statement
-  squad     ::= "squad" ident "{" field { field } "}"
+  squad     ::= "squad" ident "{" field { field } { function } "}"
   field     ::= [ "sliding" ] type ident "no_bap"
   function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
   param     ::= type ident
@@ -14,7 +14,7 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   type      ::= "doze" | "fawty" | "line" | squad_name
   assign    ::= place "post" expr "no_bap"
   place     ::= ident { "." ident }
-  call_stmt ::= call "no_bap"
+  call_stmt ::= ( call | place args ) "no_bap"
   if        ::= "spot" expr block [ "pivot" block ]
   return    ::= "cuh" [ expr ] "no_bap"
   exit      ::= "scat" [ expr ] "no_bap"
@@ -24,9 +24,10 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
   arith     ::= term { ( "bump" | "tuck_in" ) term }
   term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
-  factor    ::= number | "merch" | "woof" | literal | call | place | "(" expr ")"
+  factor    ::= number | "merch" | "woof" | literal | call | place [ args ] | "(" expr ")"
   literal   ::= squad_name "{" expr { "," expr } "}"
-  call      ::= ident "(" [ expr { "," expr } ] ")"
+  call      ::= ident args
+  args      ::= "(" [ expr { "," expr } ] ")"
 
 peek() returns the current token, eat() returns it and moves on. One token of
 look-ahead decides every choice. Two pairs of rules share their first token, and in
@@ -44,7 +45,8 @@ declared above every use of its name, so the set is always complete when it is n
 
 from .ast_nodes import (AssertNode, AssignNode, BinOpNode, BoolNode, CallNode,
                         CallStmtNode, DeclNode, ExitNode, FieldDeclNode, FieldNode,
-                        FunctionNode, IfNode, IntNode, Link, LiteralNode, ParamNode,
+                        FunctionNode, IfNode, IntNode, Link, LiteralNode,
+                        MemberCallNode, ParamNode,
                         PrintNode, ProgramNode, ReturnNode, SquadNode, StringNode,
                         VarNode)
 from .errors import CompileError
@@ -160,9 +162,10 @@ class Parser:
             return self.parse_function(type_token.text)
         return self.parse_decl(False, type_token.text)
 
-    def parse_function(self, return_type):
+    def parse_function(self, return_type, squad=None):
         """function ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
-        -- the return type, if any, is already eaten"""
+        -- the return type, if any, is already eaten; `squad` names the squad around a
+        member function"""
         self.eat()                                             # drill
         name = self.expect("identifier", None, "a function name after 'drill'")
         self.expect("punct", "(", f"'(' after the function name '{name.text}'")
@@ -174,30 +177,48 @@ class Parser:
                 params.append(self.parse_param())
         self.expect("punct", ")", "',' or ')' in the parameter list")
         body = self.parse_block(f"the body of '{name.text}'")
-        return FunctionNode(name.line, name.col, name.text, params, return_type, body)
+        return FunctionNode(name.line, name.col, name.text, params, return_type, body, squad)
 
     def parse_squad(self):
-        """squad ::= "squad" ident "{" field { field } "}" """
+        """squad ::= "squad" ident "{" field { field } { function } "}"
+
+        A field and a member function both may start with a type; as at the top level,
+        the type is eaten first and "drill" after it decides. The fields come first: a
+        field after a member function is an error."""
         self.eat()                                             # squad
         name = self.expect("identifier", None, "a squad name after 'squad'")
         self.squads.add(name.text)        # a type from here on (a field of its own type is a semantic error)
         self.expect("punct", "{", f"'{{' to open squad '{name.text}'")
         if self.at("punct", "}"):
             raise self.error(f"squad '{name.text}' is empty: a squad needs at least one field")
-        fields = [self.parse_field()]
+        fields, methods = [], []
         while not self.at("punct", "}"):
             if self.at("eof"):
                 raise self.error(f"squad '{name.text}' is not closed: expected '}}'")
-            fields.append(self.parse_field())
+            if self.at("keyword", "drill"):
+                methods.append(self.parse_function(None, name.text))
+                continue
+            sliding = self.peek()
+            mutable = self.at("keyword", "sliding")
+            if mutable:
+                self.eat()
+            type_name = self.parse_type()
+            if self.at("keyword", "drill"):
+                if mutable:
+                    raise self.error("a member function is never sliding: the object it is called "
+                                     "on decides whether it may change", sliding)
+                methods.append(self.parse_function(type_name, name.text))
+                continue
+            if methods:
+                raise self.error(f"the fields of squad '{name.text}' come before its member functions")
+            fields.append(self.parse_field(mutable, type_name))
+        if not fields:
+            raise self.error(f"squad '{name.text}' needs at least one field")
         self.eat()                                             # }
-        return SquadNode(name.line, name.col, name.text, fields)
+        return SquadNode(name.line, name.col, name.text, fields, methods)
 
-    def parse_field(self):
-        """field ::= [ "sliding" ] type ident "no_bap" """
-        mutable = self.at("keyword", "sliding")
-        if mutable:
-            self.eat()
-        type_name = self.parse_type()
+    def parse_field(self, mutable, type_name):
+        """field ::= [ "sliding" ] type ident "no_bap"   -- "sliding" and the type are eaten"""
         name = self.expect("identifier", None, f"a field name after '{type_name}'")
         if self.at("keyword", "post"):
             raise self.error(f"field '{name.text}' takes no value here: every object gets its own, "
@@ -332,7 +353,7 @@ class Parser:
                                f"({low} .. {high})")
 
     def parse_assign_or_call(self):
-        """assign ::= place "post" expr "no_bap"     call_stmt ::= call "no_bap" """
+        """assign ::= place "post" expr "no_bap"     call_stmt ::= ( call | place args ) "no_bap" """
         name = self.eat()
         links = self.parse_links()
         if self.at("keyword", "post"):
@@ -340,8 +361,12 @@ class Parser:
             node = AssignNode(name.line, name.col, name.text, self.parse_expr(), links)
             self.expect_end("assignment")
             return node
+        if links and self.at("punct", "("):                   # c.center.lift(1) no_bap
+            node = CallStmtNode(name.line, name.col, self.parse_member_call(name, links))
+            self.expect_end("call")
+            return node
         if links:
-            raise self.error(f"expected 'post' after '{links[-1].name}', found {describe(self.peek())}")
+            raise self.error(f"expected 'post' or '(' after '{links[-1].name}', found {describe(self.peek())}")
         if self.at("punct", "("):
             node = CallStmtNode(name.line, name.col, self.parse_call(name))
             self.expect_end("call")
@@ -441,6 +466,8 @@ class Parser:
             if self.at("punct", "("):
                 return self.parse_call(token)
             links = self.parse_links()
+            if links and self.at("punct", "("):
+                return self.parse_member_call(token, links)
             if links:
                 return FieldNode(token.line, token.col, token.text, links)
             return VarNode(token.line, token.col, token.text)
@@ -479,7 +506,19 @@ class Parser:
         return LiteralNode(name.line, name.col, name.text, values)
 
     def parse_call(self, name):
-        """call ::= ident "(" [ expr { "," expr } ] ")"   -- the name is already eaten"""
+        """call ::= ident args   -- the name is already eaten"""
+        return CallNode(name.line, name.col, name.text, self.parse_args(name.text))
+
+    def parse_member_call(self, name, links):
+        """place args: the last link names the member function, the rest is the object --
+        p.d2() is d2 on p, c.center.lift(1) is lift on c.center"""
+        method = links[-1]
+        target = (FieldNode(name.line, name.col, name.text, links[:-1]) if len(links) > 1
+                  else VarNode(name.line, name.col, name.text))
+        return MemberCallNode(method.line, method.col, target, method.name, self.parse_args(method.name))
+
+    def parse_args(self, callee):
+        """args ::= "(" [ expr { "," expr } ] ")" """
         self.eat()                                             # (
         args = []
         if not self.at("punct", ")"):
@@ -487,8 +526,8 @@ class Parser:
             while self.at("punct", ","):
                 self.eat()
                 args.append(self.parse_expr())
-        self.expect("punct", ")", f"',' or ')' in the call to '{name.text}'")
-        return CallNode(name.line, name.col, name.text, args)
+        self.expect("punct", ")", f"',' or ')' in the call to '{callee}'")
+        return args
 
 
 def parse(tokens):

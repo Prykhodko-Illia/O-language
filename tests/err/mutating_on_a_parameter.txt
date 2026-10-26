@@ -1,0 +1,9 @@
+squad Point {
+    sliding doze x no_bap
+    drill lift(doze dx) {
+        x post x bump dx no_bap
+    }
+}
+drill nudge(Point p) {
+    p.lift(1) no_bap
+}

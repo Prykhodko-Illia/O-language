@@ -1,0 +1,29 @@
+lowkey inside a member: parameters and variables, then fields, then nothing
+squad Box {
+    doze size no_bap
+    doze drill bigger(doze size) {
+        cuh size bump 1 no_bap              lowkey the parameter hides the field
+    }
+    doze drill own() {
+        cuh size no_bap                     lowkey the field
+    }
+    doze drill shadowed() {
+        doze size post 100 no_bap           lowkey a variable hides the field too
+        cuh size no_bap
+    }
+    doze drill twice() {
+        cuh double(own()) no_bap            lowkey own() is on this object, double is a drill
+    }
+    doze drill double(doze n) {
+        cuh n double_back 3 no_bap          lowkey the member wins over the drill below
+    }
+}
+doze drill double(doze n) {
+    cuh n double_back 2 no_bap
+}
+Box b post Box{7} no_bap
+air_out(b.bigger(41)) no_bap
+air_out(b.own()) no_bap
+air_out(b.shadowed()) no_bap
+air_out(b.twice()) no_bap
+air_out(double(5)) no_bap

@@ -44,9 +44,10 @@ program   ::= { item }
 
 item      ::= squad | function | statement
 
-(* A squad: a named type with typed fields, each tucked or "sliding". Its name is a type
- * from the "{" on, everywhere below it. *)
-squad     ::= "squad" ident "{" field { field } "}"
+(* A squad: a named type with typed fields, each tucked or "sliding", then its member
+ * functions, written like any function. Its name is a type from the "{" on, everywhere
+ * below it -- in its own member functions too. *)
+squad     ::= "squad" ident "{" field { field } { function } "}"
 
 field     ::= [ "sliding" ] type ident "no_bap"
 
@@ -68,7 +69,7 @@ assign    ::= place "post" expr "no_bap"
 
 place     ::= ident { "." ident }                (* a variable, then a field per link *)
 
-call_stmt ::= call "no_bap"
+call_stmt ::= ( call | place args ) "no_bap"     (* place args: a member call, p.lift(1) *)
 
 if        ::= "spot" expr block [ "pivot" block ]
 
@@ -96,11 +97,17 @@ arith     ::= term { ( "bump" | "tuck_in" ) term }
 
 term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
 
-factor    ::= number | "merch" | "woof" | literal | call | place | "(" expr ")"
+factor    ::= number | "merch" | "woof" | literal | call | place [ args ] | "(" expr ")"
 
 literal   ::= squad_name "{" expr { "," expr } "}"   (* one value per field, in order *)
 
-call      ::= ident "(" [ expr { "," expr } ] ")"
+call      ::= ident args
+
+args      ::= "(" [ expr { "," expr } ] ")"
+
+(* "place args" with at least one "." is a member call: the last name of the place is
+ * the member function, the rest is the object -- c.center.lift(1) calls lift on
+ * c.center. A call is only ever the end of a chain: f().x is not in the grammar. *)
 
 (* ---- Tokens: how the lexer spells the terminals (src/lexer.py) ----------------------- *)
 
