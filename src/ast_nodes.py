@@ -52,9 +52,14 @@ class ASTNode:
     def children(self):
         return []
 
+    def note(self):
+        """What the semantic pass found out about this node, for --ast-checked; empty
+        before the pass, so --ast is the same either way."""
+        return ""
+
     def dump(self, depth=0):
         """The tree as text, one node per line, children indented by two spaces."""
-        out = "  " * depth + self.label() + "\n"
+        out = "  " * depth + self.label() + self.note() + "\n"
         for child in self.children():
             out += child.dump(depth + 1)
         return out
@@ -91,6 +96,17 @@ class StmtNode(ASTNode):
 
 class ExprNode(ASTNode):
     """An expression: it produces a value."""
+
+    def note(self):
+        if not hasattr(self, "type"):
+            return ""
+        out = f"  : {self.type or 'nothing'}"
+        if self.const is not None:
+            out += f" = {self.const}"
+        decl = getattr(self, "decl", None)
+        if decl is not None:
+            out += f"  (declared at {decl.line}:{decl.col})"
+        return out
 
 
 class ProgramNode(ASTNode):
@@ -165,6 +181,10 @@ class AssignNode(StmtNode):
 
     def label(self):
         return f"Assign {self.name}"
+
+    def note(self):
+        decl = getattr(self, "decl", None)
+        return f"  (declared at {decl.line}:{decl.col})" if decl is not None else ""
 
     def children(self):
         return [self.value]

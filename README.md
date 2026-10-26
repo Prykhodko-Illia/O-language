@@ -54,12 +54,13 @@ Now the O got a compiler, look what we make.
 
 ---
 
-The course project for *Languages and Compilers Design*. **Stage 1** is the front end: a hand-written lexer
+The course project for *Languages and Compilers Design*. **Stage 1** was the front end: a hand-written lexer
 (a state machine over bytes, no regular expressions, no `split()`), a recursive-descent parser and an AST.
-Semantic checks and code generation are stages 2 and 3.
+**Stage 2** adds a semantic pass over that tree: every name is resolved to its declaration and every
+expression gets a type, before anything is built.
 
 ```
-source bytes ──lexer──► tokens ──parser──► AST ──dump──► --ast output
+source bytes ──lexer──► tokens ──parser──► AST ──semantic pass──► checked AST ──dump──► --ast-checked output
 ```
 
 The complete grammar is in [`grammar.ebnf`](grammar.ebnf): everything the parser accepts is there, and nothing else.
@@ -71,12 +72,14 @@ The complete grammar is in [`grammar.ebnf`](grammar.ebnf): everything the parser
 Nothing to build: the compiler is plain Python 3 (3.8 or newer), with no packages to install.
 
 ```bash
-python3 compiler.py --ast program.txt       # print the AST, indented by depth
-python3 compiler.py --tokens program.txt    # print the token stream (debugging)
+python3 compiler.py --ast program.txt           # print the AST, indented by depth
+python3 compiler.py --ast-checked program.txt   # run the semantic pass, then print the tree with what it found
+python3 compiler.py --tokens program.txt        # print the token stream (debugging)
 ```
 
-On success the tree goes to stdout, with exit code 0. On a lexical or syntax error you get one line on stderr,
-exit code 1, and no output:
+On success the tree goes to stdout, with exit code 0. `--ast-checked` adds to every expression its type, its
+value when it is a constant, and the declaration a name means: `Var counter  : doze  (declared at 2:18)`.
+On a lexical, syntax or semantic error you get one line on stderr, exit code 1, and no output:
 
 ```
 compilation error: line 2:1: expected 'no_bap' to end the declaration, found keyword 'doze'
@@ -91,9 +94,10 @@ early, it points right after the last token: the place where something should ha
 ./run_tests.sh
 ```
 
-- `tests/ok/NAME.txt` must parse, and its `--ast` dump must equal `tests/ok/NAME.expected`.
-- `tests/err/NAME.txt` must fail with a non-zero exit code and no output, and its error line must equal
-  `tests/err/NAME.expected`.
+- `tests/ok/NAME.txt` must parse and pass the semantic pass, and its `--ast` dump must equal
+  `tests/ok/NAME.expected`.
+- `tests/err/NAME.txt` must fail -- in the lexer, the parser or the semantic pass -- with a non-zero exit code
+  and no output, and its error line must equal `tests/err/NAME.expected`.
 
 Each test prints `PASS` or `FAIL` (with the difference), then a summary; the script exits non-zero if any test
 failed. Every test is named after what it covers: `if_else_nested.txt`, `unclosed_block.txt`.
@@ -152,8 +156,14 @@ doze y post 2147483647 bump 1 no_bap
 compilation error: line 1:24: doze overflow: the value 2147483648 does not fit in doze (-2147483648 .. 2147483647)
 ```
 
-`doze min post 0 tuck_in 2147483648 no_bap` is fine: the value is -2147483648. A value that involves variables
-(`doze y post x bump 1`) is only known once names have types, so that check comes with the semantic pass of stage 2.
+`doze min post 0 tuck_in 2147483648 no_bap` is fine: the value is -2147483648. A value that involves tucked
+variables with constant values is checked by the semantic pass, the same way (see the constant rules below):
+
+```
+doze max post 2147483647 no_bap
+doze from_names post max bump 1 no_bap
+compilation error: line 2:26: doze overflow: the value 2147483648 does not fit in doze (-2147483648 .. 2147483647)
+```
 
 ### 🔒 Constant and mutable variables
 
@@ -299,23 +309,69 @@ Every node shows its fields: the declared type and `sliding` / `tucked` for a de
 of each operator, the return type of a function. `Cond`, `Then`, `Else` and `Body` are headings that group the
 children of a node.
 
-### 🚨 Errors the front end catches
+### 📏 Rules the semantic pass enforces
+
+Every rule below is a sentence `src/semantic.py` implements, and each one has a test that follows it
+(`tests/ok/…`) and a test that breaks it (`tests/err/…`).
+
+**Names**
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| A variable is declared before it is used. | `calls` | `undeclared_variable` |
+| Every `{ }` block is a scope: its names are gone after its `}`, and it may declare a name of an outer scope again (shadowing). | `shadow_in_block` | `used_after_its_block` |
+| A name is declared once per block; a drill's parameters and the lines of its body share one block. | `if_else_nested` | `redeclared_in_block`, `param_declared_again_in_body` |
+| Only a `sliding` variable is posted to again; a parameter never is. | `assign_mutable` | `assign_tucked`, `assign_parameter` |
+| A drill sees its parameters, its own variables and every drill -- not a variable of the top level. | `design_example` | `drill_sees_no_global` |
+| A drill may call itself and any drill, declared above or below. A drill is declared once, with different parameter names. | `call_below_and_recursion` | `drill_declared_twice`, `param_declared_twice`, `call_undeclared_drill` |
+
+**Types**
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| A number has the narrowest type it fits: `doze`, else `fawty`. | `overflow_limits` | `constant_overflows_fawty` |
+| `bump`, `tuck_in`, `double_back`, `breakdown`, `scraps` take two integers and give the wider one; a `line` operand is an error. | `function_with_return` | `line_in_arithmetic` |
+| `in_tune` and `fugazi` compare two integers (any widths) or two lines, and give a `line`. | `comparisons` | `compare_line_with_doze` |
+| A `doze` goes where a `fawty` is expected -- the only conversion there is: never `fawty` into `doze`, never across `line`. | `widen_doze_into_fawty` | `narrow_fawty_into_doze`, `arg_fawty_into_doze` |
+| The condition of `spot` and of `on_the_guys` is a `line`. | `if_pivot` | `condition_not_line`, `assert_not_line` |
+| `air_out` takes a string, an integer or a line; `scat` an integer, a line or nothing. | `print_string_and_value` | `string_in_expression` |
+
+**Drills and calls**
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| A call passes one argument per parameter, each of the parameter's type (a `doze` may go into a `fawty`). | `calls` | `args_too_many`, `args_too_few`, `arg_wrong_type` |
+| A drill without a result type has no value: its call is only a statement of its own. | `function_no_return_type` | `void_call_as_value` |
+| `cuh` is only inside a drill; it carries a value of the drill's result type, or nothing when the drill returns nothing. | `function_with_return` | `cuh_at_top_level`, `cuh_wrong_type`, `cuh_value_in_void_drill`, `cuh_without_value` |
+| A drill with a result type leaves on every path: its body ends with `cuh` or `scat`, or with a `spot`/`pivot` whose two arms both leave. | `inverted_in_blocks` | `cuh_missing_on_a_path` |
+
+**Constants** (the overflow check)
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| An expression of numbers, operators and tucked variables with constant values is computed exactly, with no limit on the steps in between, and must fit the type it lands in. | `constant_through_names` | `overflow_through_names` |
+| A constant of numbers only may land in any integer it fits; one with a name keeps the type of its names, widened if its value needs it. | `overflow_limits` | `narrow_fawty_into_doze` |
+| A constant division by zero is an error. | `left_associative` | `division_by_zero_through_names` |
+
+### 🚨 Errors the compiler catches
 
 | Caught by | What |
 |---|---|
 | lexer | an unknown byte (`+`, `=`, `/`, `:`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
 | parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block; a constant initialiser that overflows its type, or divides by zero; an inverted line that does not end with its line or does not end in `post name`, `cuh` or `scat` |
+| semantic pass | every rule of the tables above: a name not declared or declared twice, a post to a tucked variable, a type that does not fit, a wrong call, a misplaced or missing `cuh`, a constant that overflows or divides by zero |
 
 ---
 
 ## 🗂️ What's in the repo
 
 ```
-compiler.py       entry point: --ast, --tokens, error reporting
+compiler.py       entry point: --ast, --ast-checked, --tokens, error reporting
 grammar.ebnf      the grammar in EBNF
 src/lexer.py      Token and lex(): byte-by-byte state machine (START, WORD, NUMBER, STRING, COMMENT)
 src/parser.py     Parser: recursive descent, peek()/eat(), one method per grammar rule
 src/ast_nodes.py  ASTNode, ProgramNode, FunctionNode, StmtNode + statements, ExprNode + expressions, dump()
+src/semantic.py   SemanticChecker: the symbol table, names, types, drills and constants; annotates the tree
 src/errors.py     CompileError with line and column
 tests/ok/         valid programs and their expected AST dump
 tests/err/        invalid programs and their expected error line

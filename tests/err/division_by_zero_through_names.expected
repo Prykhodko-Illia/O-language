@@ -1,0 +1,1 @@
+compilation error: line 2:16: division by zero in a constant expression ('scraps' by 0)

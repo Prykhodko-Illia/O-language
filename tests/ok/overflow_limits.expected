@@ -15,7 +15,3 @@ Program
         Int 0
         Int 9223372036854775807
       Int 1
-  Decl from_names doze tucked
-    BinOp bump (+)
-      Var max
-      Int 1

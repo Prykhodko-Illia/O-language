@@ -29,12 +29,14 @@
  * a statement ends with "no_bap". The word "lowkey" starts a comment that runs to the end
  * of the line; it never becomes a token, so it is not in the grammar.
  *
- * What this grammar deliberately cannot say (those are semantics, checked in the next
- * stage): that a name is declared before it is used and only once, that only a "sliding"
- * variable is assigned with "post", every type rule, and the range of a value that
- * involves names (a constant initialiser is already checked against its type by the
- * parser: doze -2147483648 .. 2147483647, fawty -9223372036854775808 .. 9223372036854775807), that "cuh" appears only inside a "drill", and that a call
- * passes as many arguments as the function has parameters.
+ * What this grammar deliberately cannot say (those are semantics, checked by the semantic
+ * pass in src/semantic.py and listed in the README): that a name is declared before it
+ * is used and only once, that only a "sliding" variable is assigned with "post", every
+ * type rule, the range of a constant that involves names (a constant initialiser of
+ * numbers only is already checked against its type by the parser: doze -2147483648 ..
+ * 2147483647, fawty -9223372036854775808 .. 9223372036854775807), that "cuh" appears only
+ * inside a "drill" and that a drill with a result type always reaches one, and that a
+ * call passes as many arguments as the function has parameters, of their types.
  *)
 
 program   ::= { item }
