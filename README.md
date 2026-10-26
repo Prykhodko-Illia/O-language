@@ -697,6 +697,34 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 
 ---
 
+## 🎨 Extra: VS Code highlighting
+
+[`editors/vscode/`](editors/vscode) is a small VS Code extension that colours O-language: the types, `sliding`,
+the control words (`spot`, `pivot`, `cuh`, `scat`), the operators (`bump`, `post`, `in_tune`, …), `merch` / `woof`,
+`air_out` and `finna_hear`, `no_bap`, `pab_on`, strings, numbers and `lowkey` comments. On top of the words it
+knows the shapes: the name after `squad` and after `drill`, a squad used as a type (`Point p post …`,
+`sliding Point center no_bap`, `Point drill origin()`), a literal `Point{3, 4}`, a field after a `.`, and a member
+call `c.center.lift(1)`. `spot ok {` stays a condition and a block, as in the compiler: only a name written
+right against its `{` is a literal. A highlighter cannot know which names are squads, so an unknown type like
+`int x post 5` is coloured as one too -- the compiler is the one that rejects it.
+
+It is a grammar and a language configuration, no code: `lowkey` is the line comment (`Cmd+/` toggles it),
+brackets match and close, and a line after `{` is indented. Install it by linking the folder into VS Code's
+extensions and restarting VS Code:
+
+```bash
+ln -s "$PWD/editors/vscode" ~/.vscode/extensions/o-language
+```
+
+Files ending in `.ol` or `.olang` open as O-language. The tests are `.txt`: pick *O-language* with *Change
+Language Mode* in the status bar, or map them in your settings with `"files.associations": {"*.txt": "o-language"}`
+for this workspace.
+
+The grammar was checked with the TextMate engine VS Code itself uses (`vscode-textmate` and `vscode-oniguruma`)
+over every program in `tests/`: every squad is coloured as a type, and no variable is.
+
+---
+
 ## 🗂️ What's in the repo
 
 ```
@@ -713,6 +741,7 @@ tests/err/        invalid programs and their expected error line
 run_tests.sh      compiles and runs every test and reports PASS / FAIL
 full_compiler.sh  source -> output.ll -> output.o -> program, and runs it
 githooks/         pre-push: the tests before every push (git config core.hooksPath githooks)
+editors/vscode/   the VS Code extension: syntax highlighting and comment / bracket rules
 .github/workflows tests.yml: the tests and a native build on every push and pull request
 ai_usage.txt      how AI was used for Stage 1
 ai_usage_2.txt    how AI was used for Stage 2
