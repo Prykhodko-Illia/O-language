@@ -1,21 +1,3 @@
-Program
-  Decl max doze tucked
-    Int 2147483647
-  Decl past_max fawty tucked
-    BinOp bump (+)
-      Var max
-      Int 1
-  Decl back fawty tucked
-    BinOp tuck_in (-)
-      Var past_max
-      Int 1
-  Decl min doze tucked
-    BinOp tuck_in (-)
-      Int 0
-      Int 2147483648
-  Print
-    Var past_max
-  Print
-    Var back
-  Print
-    Var min
+2147483648
+2147483647
+-2147483648

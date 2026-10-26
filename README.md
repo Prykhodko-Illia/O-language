@@ -56,11 +56,12 @@ Now the O got a compiler, look what we make.
 
 The course project for *Languages and Compilers Design*. **Stage 1** was the front end: a hand-written lexer
 (a state machine over bytes, no regular expressions, no `split()`), a recursive-descent parser and an AST.
-**Stage 2** adds a semantic pass over that tree: every name is resolved to its declaration and every
-expression gets a type, before anything is built.
+**Stage 2** makes it run: a semantic pass over that tree resolves every name to its declaration and gives every
+expression a type, and then a code generator walks the checked tree and builds LLVM IR through the `llvmlite`
+builder. The only IR text the compiler writes is the module the builder printed.
 
 ```
-source bytes ──lexer──► tokens ──parser──► AST ──semantic pass──► checked AST ──dump──► --ast-checked output
+source bytes ──lexer──► tokens ──parser──► AST ──semantic pass──► checked AST ──codegen──► output.ll ──lli / llc + clang──► 🏀
 ```
 
 The complete grammar is in [`grammar.ebnf`](grammar.ebnf): everything the parser accepts is there, and nothing else.
@@ -69,7 +70,42 @@ The complete grammar is in [`grammar.ebnf`](grammar.ebnf): everything the parser
 
 ## 🛠️ Build and run
 
-Nothing to build: the compiler is plain Python 3 (3.8 or newer), with no packages to install.
+### 🕶️ Pull up with the right tools
+
+Nothing to build: the compiler is plain Python 3. Code generation needs `llvmlite`, and running what it makes
+needs LLVM (`lli`, or `llc` and `clang`). On Ubuntu 24.04, the setup the tests run on:
+
+```bash
+sudo apt update
+sudo apt install -y llvm clang python3 python3-venv python3-pip
+
+python3 -m venv ~/lcd
+source ~/lcd/bin/activate
+pip install 'llvmlite==0.49.*'
+```
+
+Every new shell starts without the venv: `source ~/lcd/bin/activate` before you touch the compiler or the tests.
+(`--ast`, `--ast-checked` and `--tokens` run without llvmlite.)
+
+### ⚙️ Run the compiler
+
+```bash
+python3 compiler.py program.txt output.ll       # compile: write the LLVM IR module
+lli output.ll                                   # run it, no linker needed
+```
+
+Or go all the way to a native binary, by hand or with `full_compiler.sh`, which leaves `output.ll`, `output.o` and
+`program` in the current directory:
+
+```bash
+llc -filetype=obj -relocation-model=pic output.ll -o output.o
+clang -fPIE output.o -o program
+./program
+
+./full_compiler.sh tests/ok/spot_pivot_runs.txt     # zero / even / odd
+```
+
+The other modes print instead of compiling, and write no file:
 
 ```bash
 python3 compiler.py --ast program.txt           # print the AST, indented by depth
@@ -77,9 +113,10 @@ python3 compiler.py --ast-checked program.txt   # run the semantic pass, then pr
 python3 compiler.py --tokens program.txt        # print the token stream (debugging)
 ```
 
-On success the tree goes to stdout, with exit code 0. `--ast-checked` adds to every expression its type, its
-value when it is a constant, and the declaration a name means: `Var counter  : doze  (declared at 2:18)`.
-On a lexical, syntax or semantic error you get one line on stderr, exit code 1, and no output:
+`--ast-checked` adds to every expression its type, its value when it is a constant, and the declaration a name
+means: `Var counter  : doze  (declared at 2:18)`.
+
+On a lexical, syntax or semantic error you get one line on stderr, exit code 1, and no output file:
 
 ```
 compilation error: line 2:1: expected 'no_bap' to end the declaration, found keyword 'doze'
@@ -94,10 +131,15 @@ early, it points right after the last token: the place where something should ha
 ./run_tests.sh
 ```
 
-- `tests/ok/NAME.txt` must parse and pass the semantic pass, and its `--ast` dump must equal
-  `tests/ok/NAME.expected`.
+(with the venv active, where `lli` is installed)
+
+- `tests/ok/NAME.txt` must compile; the program runs under `lli`, and its whole output must equal
+  `tests/ok/NAME.expected` -- the `air_out` lines, the `scat` line, a runtime error line. When `tests/ok/NAME.in`
+  exists, it is the program's standard input.
 - `tests/err/NAME.txt` must fail -- in the lexer, the parser or the semantic pass -- with a non-zero exit code
-  and no output, and its error line must equal `tests/err/NAME.expected`.
+  and no output file, and its error line must equal `tests/err/NAME.expected`.
+- When `NAME.ast` (or `NAME.ast-checked`) exists next to a program, the `--ast` (or `--ast-checked`) dump must
+  equal it too: the Stage 1 tests keep their tree dumps there.
 
 Each test prints `PASS` or `FAIL` (with the difference), then a summary; the script exits non-zero if any test
 failed. Every test is named after what it covers: `if_else_nested.txt`, `unclosed_block.txt`.
@@ -249,11 +291,12 @@ compilation error: line 1:22: an inverted line ends with the line: unexpected ke
 
 ### 🤞 The invariant: `on_the_guys`
 
-`on_the_guys(condition) no_bap` states a contract: if the condition is `woof`, the program panics on the spot.
-(The check itself is generated in stage 3; stage 1 parses it into an `Assert` node.)
+`on_the_guys(condition) no_bap` states a contract: if the condition is `woof` when the line runs, the program
+prints where the promise was broken and ends with exit code 1.
 
 ```
 on_the_guys(target in_tune 40) no_bap
+line 3:1: you said on_the_guys, but it was cap
 ```
 
 ### 📢 Print, exit and comments
@@ -264,6 +307,32 @@ air_out(x bump 1) no_bap        lowkey or a value
 scat 0 no_bap                   lowkey exit the program, with or without a value
 lowkey everything after lowkey is ignored up to the end of the line
 ```
+
+`air_out` prints its one argument and a newline: a `doze` or a `fawty` as a number, a `line` as `true` or
+`false`, a string as it is written (a `%` stays a `%`).
+
+`scat value` prints `Program exit with result value` and ends the program with exit code 0 -- wherever it
+stands, inside a drill too. `scat` with no value ends it silently, and so does reaching the end of the file.
+Lines after a `scat` or a `cuh` in the same block are allowed and never run.
+
+```
+sliding doze n post 3 no_bap
+scat n in_tune 3 no_bap          →  Program exit with result true
+```
+
+### 💥 When it runs: runtime errors
+
+The compiler cannot know a value that comes from a `sliding` variable, so every operation that can break is
+checked when it runs. A broken one prints one line -- where, and what -- and ends the program with exit code 1:
+
+| What | Example | Prints |
+|---|---|---|
+| `bump`, `tuck_in`, `double_back` out of the type's range | `x post x bump 1` with x = 2147483647 | `line 3:10: doze overflow in 'bump', the bag is too big for doze` |
+| `breakdown` or `scraps` by 0 | `10 breakdown zero` | `line 2:12: 'breakdown' by 0, you can't split it with nobody` |
+| the one quotient that does not fit | `low breakdown minus_one` with low = -2147483648 | `line 4:13: doze overflow in 'breakdown', the bag is too big for doze` |
+| an `on_the_guys` that is `woof` | `on_the_guys(target in_tune 40)` | `line 3:1: you said on_the_guys, but it was cap` |
+
+(`low scraps minus_one` is 0 and fine: the remainder always fits.)
 
 ### 🏆 A whole program
 
@@ -353,6 +422,16 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | A constant of numbers only may land in any integer it fits; one with a name keeps the type of its names, widened if its value needs it. | `overflow_limits` | `narrow_fawty_into_doze` |
 | A constant division by zero is an error. | `left_associative` | `division_by_zero_through_names` |
 
+**At run time** -- what the generated code checks, tested end to end
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| `bump`, `tuck_in`, `double_back` and `breakdown` give a value of their type, or end the program. | `arithmetic_at_run_time` | `runtime_doze_overflow`, `runtime_fawty_overflow`, `runtime_min_breakdown_minus_one` |
+| `breakdown` and `scraps` never divide by 0; they round toward zero, as in C. | `arithmetic_at_run_time` | `runtime_division_by_zero`, `runtime_scraps_by_zero` |
+| `on_the_guys` with a `woof` condition ends the program. | `assert_holds_at_run_time` | `runtime_assert_breaks` |
+| `scat` ends the program wherever it stands; nothing after it runs. | `scat_inside_drill`, `code_after_scat` | -- |
+| A drill's name never meets the runtime's: `drill main` and `drill printf` are ordinary drills. | `drill_named_main_and_printf` | -- |
+
 ### 🚨 Errors the compiler catches
 
 | Caught by | What |
@@ -366,16 +445,18 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 ## 🗂️ What's in the repo
 
 ```
-compiler.py       entry point: --ast, --ast-checked, --tokens, error reporting
+compiler.py       entry point: compile to .ll, --ast, --ast-checked, --tokens, error reporting
 grammar.ebnf      the grammar in EBNF
 src/lexer.py      Token and lex(): byte-by-byte state machine (START, WORD, NUMBER, STRING, COMMENT)
 src/parser.py     Parser: recursive descent, peek()/eat(), one method per grammar rule
 src/ast_nodes.py  ASTNode, ProgramNode, FunctionNode, StmtNode + statements, ExprNode + expressions, dump()
 src/semantic.py   SemanticChecker: the symbol table, names, types, drills and constants; annotates the tree
+src/codegen.py    CodeGen: walks the checked tree and builds the module with the llvmlite builder
 src/errors.py     CompileError with line and column
-tests/ok/         valid programs and their expected AST dump
+tests/ok/         valid programs, their expected output (.expected), input (.in) and tree dumps (.ast)
 tests/err/        invalid programs and their expected error line
-run_tests.sh      runs every test and reports PASS / FAIL
+run_tests.sh      compiles and runs every test and reports PASS / FAIL
+full_compiler.sh  source -> output.ll -> output.o -> program, and runs it
 ai_usage.txt      how AI was used for this stage
 ```
 

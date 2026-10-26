@@ -1,0 +1,25 @@
+Program
+  Decl x doze tucked
+    Call fact (1 args)
+      Int 5
+  Print
+    Var x
+  Function fact returns doze
+    Param n doze
+    Body
+      If with pivot
+        Cond
+          BinOp in_tune (==)
+            Var n
+            Int 0
+        Then
+          Return
+            Int 1
+        Else
+          Return
+            BinOp double_back (*)
+              Var n
+              Call fact (1 args)
+                BinOp tuck_in (-)
+                  Var n
+                  Int 1

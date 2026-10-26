@@ -1,0 +1,7 @@
+line drill is_ten(doze n) {
+    cuh n in_tune 10 no_bap
+}
+sliding doze x post 4 no_bap
+x post x bump 6 no_bap
+on_the_guys(is_ten(x)) no_bap
+air_out("promise kept") no_bap
