@@ -144,6 +144,24 @@ early, it points right after the last token: the place where something should ha
 Each test prints `PASS` or `FAIL` (with the difference), then a summary; the script exits non-zero if any test
 failed. Every test is named after what it covers: `if_else_nested.txt`, `unclosed_block.txt`.
 
+### 🚦 Before a push and on GitHub
+
+GitHub Actions runs `./run_tests.sh` on every push and every pull request into `main`
+([`.github/workflows/tests.yml`](.github/workflows/tests.yml)), on Ubuntu 24.04 with LLVM 18 and llvmlite 0.49, and
+then builds `tests/ok/whole_program_demo` into a native binary with `full_compiler.sh` and checks what it prints.
+
+Locally, a pre-push hook does the same before anything leaves your machine. Turn it on once per clone:
+
+```bash
+git config core.hooksPath githooks
+```
+
+Now every `git push` runs the tests first and stops if one fails, showing only the failures and the summary (the
+full output stays in `.git/pre-push.log`). No `lli` or llvmlite on the machine, like on macOS? The hook runs the
+tests in the Multipass VM `noble-compilers` instead, with the repository at `~/compilers-proj` and the venv at
+`~/lcd`; set `COMPILERS_VM`, `O_LANGUAGE_VM_REPO` or `COMPILERS_VM_VENV` if yours differ. In a hurry?
+`git push --no-verify` skips it.
+
 ---
 
 ## 📜 The language
@@ -588,6 +606,8 @@ tests/ok/         valid programs, their expected output (.expected), input (.in)
 tests/err/        invalid programs and their expected error line
 run_tests.sh      compiles and runs every test and reports PASS / FAIL
 full_compiler.sh  source -> output.ll -> output.o -> program, and runs it
+githooks/         pre-push: the tests before every push (git config core.hooksPath githooks)
+.github/workflows tests.yml: the tests and a native build on every push and pull request
 ai_usage.txt      how AI was used for this stage
 ```
 
