@@ -31,6 +31,11 @@ Every node keeps the line and column of the token it came from, so the later sta
 can point at an error without having any tokens left. The tree holds names, numbers,
 flags and child nodes: never a token.
 
+`accept(visitor)` calls the visitor method for that node kind -- visit_decl for a
+DeclNode, visit_binop for a BinOpNode -- so each walk over the tree (the semantic pass,
+then the code generator) is a class of its own, and a node does not know what is done
+with it. Group has none: it exists only in the dump.
+
 (Not named ast.py: that would shadow the standard library's `ast` module.)
 """
 
@@ -99,6 +104,9 @@ class ProgramNode(ASTNode):
     def children(self):
         return self.items
 
+    def accept(self, visitor):
+        return visitor.visit_program(self)
+
 
 class FunctionNode(ASTNode):
     def __init__(self, line, col, name, params, return_type, body):
@@ -114,6 +122,9 @@ class FunctionNode(ASTNode):
     def children(self):
         return [*self.params, Group("Body", self.body)]
 
+    def accept(self, visitor):
+        return visitor.visit_function(self)
+
 
 class ParamNode(ASTNode):
     def __init__(self, line, col, name, type_name):
@@ -123,6 +134,9 @@ class ParamNode(ASTNode):
 
     def label(self):
         return f"Param {self.name} {self.type_name}"
+
+    def accept(self, visitor):
+        return visitor.visit_param(self)
 
 
 class DeclNode(StmtNode):
@@ -139,6 +153,9 @@ class DeclNode(StmtNode):
     def children(self):
         return [self.init]
 
+    def accept(self, visitor):
+        return visitor.visit_decl(self)
+
 
 class AssignNode(StmtNode):
     def __init__(self, line, col, name, value):
@@ -152,6 +169,9 @@ class AssignNode(StmtNode):
     def children(self):
         return [self.value]
 
+    def accept(self, visitor):
+        return visitor.visit_assign(self)
+
 
 class CallStmtNode(StmtNode):
     def __init__(self, line, col, call):
@@ -163,6 +183,9 @@ class CallStmtNode(StmtNode):
 
     def children(self):
         return [self.call]
+
+    def accept(self, visitor):
+        return visitor.visit_call_stmt(self)
 
 
 class IfNode(StmtNode):
@@ -181,6 +204,9 @@ class IfNode(StmtNode):
             out.append(Group("Else", self.else_body))
         return out
 
+    def accept(self, visitor):
+        return visitor.visit_if(self)
+
 
 class ReturnNode(StmtNode):
     def __init__(self, line, col, value):
@@ -192,6 +218,9 @@ class ReturnNode(StmtNode):
 
     def children(self):
         return [self.value] if self.value is not None else []
+
+    def accept(self, visitor):
+        return visitor.visit_return(self)
 
 
 class ExitNode(StmtNode):
@@ -205,6 +234,9 @@ class ExitNode(StmtNode):
     def children(self):
         return [self.value] if self.value is not None else []
 
+    def accept(self, visitor):
+        return visitor.visit_exit(self)
+
 
 class AssertNode(StmtNode):
     def __init__(self, line, col, cond):
@@ -217,6 +249,9 @@ class AssertNode(StmtNode):
     def children(self):
         return [self.cond]
 
+    def accept(self, visitor):
+        return visitor.visit_assert(self)
+
 
 class PrintNode(StmtNode):
     def __init__(self, line, col, value):
@@ -228,6 +263,9 @@ class PrintNode(StmtNode):
 
     def children(self):
         return [self.value]
+
+    def accept(self, visitor):
+        return visitor.visit_print(self)
 
 
 SYMBOLS = {
@@ -250,6 +288,9 @@ class BinOpNode(ExprNode):
     def children(self):
         return [self.left, self.right]
 
+    def accept(self, visitor):
+        return visitor.visit_binop(self)
+
 
 class CallNode(ExprNode):
     def __init__(self, line, col, name, args):
@@ -263,6 +304,9 @@ class CallNode(ExprNode):
     def children(self):
         return self.args
 
+    def accept(self, visitor):
+        return visitor.visit_call(self)
+
 
 class VarNode(ExprNode):
     def __init__(self, line, col, name):
@@ -271,6 +315,9 @@ class VarNode(ExprNode):
 
     def label(self):
         return f"Var {self.name}"
+
+    def accept(self, visitor):
+        return visitor.visit_var(self)
 
 
 class IntNode(ExprNode):
@@ -281,6 +328,9 @@ class IntNode(ExprNode):
     def label(self):
         return f"Int {self.value}"
 
+    def accept(self, visitor):
+        return visitor.visit_int(self)
+
 
 class BoolNode(ExprNode):
     def __init__(self, line, col, value):
@@ -290,6 +340,9 @@ class BoolNode(ExprNode):
     def label(self):
         return f"Bool {'merch' if self.value else 'woof'}"
 
+    def accept(self, visitor):
+        return visitor.visit_bool(self)
+
 
 class StringNode(ExprNode):
     def __init__(self, line, col, value):
@@ -298,3 +351,6 @@ class StringNode(ExprNode):
 
     def label(self):
         return f'String "{self.value}"'
+
+    def accept(self, visitor):
+        return visitor.visit_string(self)
