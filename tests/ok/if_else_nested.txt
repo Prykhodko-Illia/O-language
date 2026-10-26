@@ -1,0 +1,10 @@
+sliding fawty x post 5 no_bap
+spot x fugazi 0 {
+    spot x in_tune 5 {
+        x post 50 no_bap
+    } pivot {
+        spot merch { x post 1 no_bap }
+    }
+} pivot {
+    scat 1 no_bap
+}

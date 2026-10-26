@@ -1,0 +1,4 @@
+drill hello() {
+    air_out("hello") no_bap
+    cuh no_bap
+}

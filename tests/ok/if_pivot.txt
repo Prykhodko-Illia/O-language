@@ -1,0 +1,6 @@
+sliding doze x post 7 no_bap
+spot (x fugazi 0) {
+    x post x tuck_in 1 no_bap
+} pivot {
+    x post 100 no_bap
+}

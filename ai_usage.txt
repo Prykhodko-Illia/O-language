@@ -1,0 +1,289 @@
+AI usage log - Project Stage 1 (language design, lexer and parser)
+==================================================================
+
+Tool:    Claude Code (Claude desktop app, Code tab)
+Model:   Claude Opus 5.5 (claude-opus-5-5)
+Date:    2026-10-06
+Setup:   The AI read the stage PDF, read my Practice 1-4 code in ~/Study/compilers, and created and
+         edited the files in ~/Study/compilers-proj on my Mac. Commits on the stage1 branch were made
+         under my own git identity. I create the GitHub repository, push, add the reviewer and open
+         the pull request myself.
+
+The language design (every keyword, the operators, the statements, the unique feature and the
+extras) is mine: I wrote it and sent it to the AI. The AI checked it against the PDF, settled the
+points that were ambiguous (listed below), and wrote the implementation, tests and documentation.
+
+I used two separate Claude Code sessions:
+  - Session 1 built everything: the language, the lexer, the parser, the AST, the tests and the docs.
+  - Session 2 only reviewed the work against the PDF. I pasted its findings into session 1, which
+    made the fixes (prompts 8 and 9 there).
+
+Below is every prompt I sent in each session, quoted as written, followed by what the AI did.
+
+======================================
+SESSION 1 - generating syntax and idea
+======================================
+Tool:    Gemini
+Model:   Gemini 3.8 Flash 
+link:    https://share.gemini.google/JaQt2OcoiJnK
+
+
+==============================
+SESSION 2 - building the stage
+==============================
+
+
+1. Prompt:
+   [attached w04-project-stage1.pdf]
+   "Hello, claude, look at this
+   we have one hour for all of that.
+   I want to design language, so that tell what I should tell you and then build it on your own by
+   strictly following file's requirements
+   ok, also I have fully done 4 previous practices? so that you can borrow something from that
+   it is in the 'compilers' folder
+   the project itself should be in the 'compilers-proj' folder"
+
+   What the AI did:
+   Extracted the text of the PDF, read my practice code (lexer, parser, AST, test script, README),
+   asked how to handle git (answer: local git, I push), created the repository with main and
+   stage1 branches, and listed the design decisions it needed from me.
+
+
+2. Prompt:
+   "do not write e.g.
+   just punkts of what I have to provide"
+
+   What the AI did:
+   Gave the list without examples: type names, literals, mutable marker, declaration shape,
+   assignment, operators, if / else, blocks, exit, statement separator, unique feature, extras.
+
+
+3. Prompt (my language design, pasted as written):
+   "Types & Literals
+   * i32: `doze` (standard 32-round capacity)
+   * i64: `fawty` (extended capacity / drum)
+   * bool: `line` (binary territory state: clear or compromised)
+   * true literal: `merch` (strictly sworn, verified truth)
+   * false literal: `woof` (false claims, barking without backing)
+   Variables & Storage
+   * Declaration shape: `tuck <identifier>: <type>`
+   * Mutable marker & placement: `sliding` prefix (`tuck sliding <identifier>: <type>`). Immutable by
+     default (`tucked`).
+   * Assignment operator: `post` (binds a value to a register/identifier; e.g., `x post 100`)
+   Operators
+   * Arithmetic: Add: `bump`, Subtract: `tuck_in`, Multiply: `double_back`, Divide: `breakdown`,
+     Modulo: `scraps`
+   * Equals operator: `in_tune` (`a in_tune b`)
+   * Not-equals operator: `fugazi` (`a fugazi b`)
+   Control Flow & Blocks
+   * if keyword: `spot`
+   * else keyword: `pivot`
+   * Block open / close: `creepin { ... } ghost`
+   * Return statement: `cuh` (returns value or exits current frame; e.g., `cuh 0`)
+   * Exit / Abort statement: `scat` (immediate process termination/panic)
+   * Statement separator / line rule: `no_bap` (strictly required terminal delimiter)
+   Unique Feature & Extras
+   * Unique syntax feature (`on_the_guys` invariant): Compile-time or runtime contract
+     verification. Evaluates the enclosed condition; panics immediately if the state evaluates
+     to `woof`.  on_the_guys(target in_tune 40) no_bap
+   * Extras:
+     * Function declaration: `drill <fn_name>(<params>) cuh <return_type>`
+     * Line comment: `lowkey // commentary`
+     * Block comment: `huddle /* ... */`
+     * Print / stdout: `air_out("message") no_bap`
+   Example Routine
+   drill run_check(target: doze) cuh bool creepin {
+       tuck sliding counter: doze post target no_bap
+       spot (counter fugazi 0) creepin {
+           counter post counter tuck_in 1 no_bap
+           on_the_guys(counter in_tune 0) no_bap
+           cuh merch no_bap
+       } ghost pivot creepin {
+           air_out("empty") no_bap
+           cuh woof no_bap
+       } ghost
+   } ghost
+   this style
+   main rule: DO NOT INCLUDE YOURSELF IN COMMIT AUTHOR's"
+
+   What the AI did:
+   Checked the design against the PDF's required features (all present) and decided the open
+   points, which I accepted:
+     - `cuh bool` in my example became `cuh line`, because the bool type is `line`;
+     - `tucked` is not a keyword: a declaration without `sliding` is immutable;
+     - every declaration needs `post <expr>`;
+     - a block is `creepin { statement+ } ghost` and is never empty (changed in prompt 5);
+     - `no_bap` ends simple statements; `spot` and `drill` end with their block and take none;
+       newlines are just whitespace;
+     - `lowkey` starts a comment to the end of the line; block comments (`huddle`) were left out
+       because the design gives no way to close them;
+     - `( )` group expressions, so `spot (x fugazi 0)` and `spot x fugazi 0` both work;
+     - overflow: a number above the fawty (i64) maximum is a lexical error; checks that depend on
+       the type are left for stage 2.
+   Then wrote, borrowing the structure of my practice code:
+     - src/lexer.py: new byte state machine (START, WORD, NUMBER, STRING, COMMENT) producing one
+       token stream with an eof token instead of a list of lines;
+     - src/ast_nodes.py: ASTNode / ProgramNode / FunctionNode / StmtNode / ExprNode hierarchy with
+       dump();
+     - src/parser.py: recursive descent with peek/eat, one method per grammar rule;
+     - compiler.py with --ast and --tokens; src/errors.py copied from my practice;
+     - grammar.ebnf;
+     - 21 valid and 30 invalid test programs with expected outputs, and run_tests.sh;
+     - README.md.
+   The expected files were generated by running the compiler and then checked by reading every
+   error line and the AST dumps.
+   No commit has the AI as an author or co-author.
+
+
+4. Prompt:
+   "project name is O-language
+   lore: balck man from O-block now decided to do good things and carry business correctly with
+   good behave, so that they now implemented own language
+   and generate something interesting - you can even make it as a rap - King Von story type shi"
+
+   What the AI did:
+   Renamed the language to O-language in README.md and grammar.ebnf, and wrote the lore section and
+   an original story-rap about leaving the old life and writing a compiler, using the keywords of
+   the language. No lyrics of any real artist were used.
+
+
+5. Prompt:
+   "wait, please redo it so it would be more like c++ style
+   doze drill function_name() {
+   }
+   but in my semantic that I provided
+   maybe also kepp {} as is without adding other words for opening and closing"
+
+   What the AI did:
+   Changed the syntax and kept the rest of my design:
+     - a function is now  [ type ] drill name(param: type, ...) { ... }  -- the return type comes
+       first, as in C++, instead of "cuh <type>" after the parameters (cuh is now only return);
+     - a block is now plain  { statement+ }  -- "creepin" and "ghost" were removed from the lexer,
+       the grammar, the tests and the README;
+     - a type at the start of a line must be followed by "drill", so  doze x post 5 no_bap  is a
+       syntax error that tells you variables are declared with "tuck".
+   Updated grammar.ebnf, the parser, every test program and its expected output, the README and
+   this file; added tests for the new error cases (53 tests, all passing).
+
+
+6. Prompt:
+   "yes make params c++ style too"
+
+   What the AI did:
+   Changed the parameter rule to  param ::= type ident  (e.g.  fawty drill add(doze a, fawty b) { ... }),
+   in the parser, grammar.ebnf, the tests and the README; the old "a: doze" form is now an error test
+   (param_old_colon_style), and a type without a name is another (param_without_name). 54 tests pass.
+
+
+7. Prompt:
+   "make variable declarations c++ style too"
+
+   What the AI did:
+   Changed declarations to  [ sliding ] type name post value no_bap  (e.g.  sliding doze counter post 0 no_bap),
+   so "tuck" is no longer a keyword (tuck_in stays the minus operator). A type now starts both a
+   function and a declaration, so the parser eats the type and decides by the next token: "drill"
+   means a function, a name means a declaration. Updated the parser, lexer, grammar.ebnf, every
+   test, the README (including the lore and one line of the rap that used "tuck") and this file.
+   New error tests: old_tuck_style, sliding_after_type, sliding_function, nested_typed_function.
+
+
+8. Prompt (I pasted a review of weak spots, written by another AI chat, and asked to fix them):
+   "solve it and update ai_usage.txt
+   Weak spots a strict grader could mark down (Language design, 4 pt)
+   3. The "unique syntax element" is weak. `on_the_guys(...)` is an assert keyword, which is a
+      new word, not new syntax. The PDF's examples are things like "one symbol per line" or
+      "inverted lines".
+   4. Overflow is only checked against the i64 maximum. `doze x post 3000000000 no_bap` parses
+      fine. Leaving the i32 check for stage 2 is defensible, and the README explains it, but a
+      grader could still call it partial.
+   5. Tokens aren't written out in EBNF. `ident`, `number` and `string` are only described in a
+      comment. "Every construct your parser accepts is in the grammar" can be read strictly, and
+      adding three small rules would close that gap."
+
+   What the AI did:
+   - Unique syntax: added inverted lines. A line opened with `pab_on` ("no_bap" backwards) holds
+     a declaration, assignment, cuh or scat written back to front and ends with the line:
+         pab_on 5 post x doze sliding   =   sliding doze x post 5 no_bap
+     The lexer emits an `eol` token at the end of a line opened by pab_on (the only place a
+     newline matters), the parser has a parse_inverted method and grammar rule, and the dump
+     marks the node "(inverted)". on_the_guys stays as the assert statement.
+   - Overflow: when a doze or fawty variable is initialised with a constant expression (numbers
+     and operators only), the parser computes its value and checks it against the type's range
+     (doze -2^31 .. 2^31-1, fawty -2^63 .. 2^63-1); a constant division by zero is an error too.
+     Values involving variables are still left for stage 2.
+   - EBNF: added rules for the tokens: ident, number, string, eol, comment, letter, digit, and
+     what separates tokens.
+   - 13 new tests (3 valid, 10 invalid): 69 in total, all passing. README updated with a section
+     for each change.
+
+
+9. Prompt (another review from the other AI chat, pasted as written):
+   "Small
+   3. README typo at line 40: "close it when it.s done" should be "it's".
+   4. The lexer accepts `:` but the grammar never uses it. It's left over from the old `a: doze`
+      parameters: the lexer still turns it into a token and the grammar still lists it as a
+      terminal, but no rule uses it. It does no harm (any `:` is still a syntax error), but
+      strictly the grammar is supposed to list exactly what the parser accepts. The fix is to
+      remove `:` from `PUNCT` in src/lexer.py and from the terminals line in `grammar.ebnf`."
+
+   What the AI did:
+   Fixed the typo in the rap; removed ':' from PUNCT in the lexer and from the terminals in
+   grammar.ebnf, so a ':' is now a lexical error ("unexpected byte ':'"); updated the expected
+   errors of the two tests that use the old colon syntax (old_tuck_style, param_old_colon_style)
+   and listed ':' among the unknown bytes in the README. 69 tests, all passing.
+
+
+10. Prompt:
+   "add more emojis to readme with basketball and other hood things
+   record this prompt in your session (session 2 ai_usage)
+   I will push by myself"
+
+   What the AI did:
+   Added emojis to the README only: a basketball / block emoji line and a tagline under the title,
+   one emoji on every section heading, two lines about the court in the lore, and a closing line.
+   No code blocks, examples or code were changed; 69 tests still pass. Recorded this prompt here.
+
+
+==================================
+SESSION 3 - review against the PDF
+==================================
+A separate Claude Code session that read the PDF and the repository, ran the tests and listed
+what did not yet follow the PDF. It did not write the code; I took its findings to session 1.
+
+1. Prompt:
+   [attached w04-project-stage1.pdf]
+   "hello, look at this file and strictly check whether everyhing is followed well"
+
+   What the AI did:
+   Checked every requirement of the PDF against the repository and ran the tests. Reported: no
+   remote / pull request yet, placeholders left in ai_usage.txt, and weak spots in the design
+   (no emojis, the unique feature, the overflow check, token rules missing from the EBNF).
+   I pasted points 3-5 into session 1 (its prompt 8).
+
+2. Prompt:
+   "check it now - ignore emojis and 'recomendations'"
+
+   What the AI did:
+   Re-checked after session 1's changes (inverted lines, overflow checks, token rules): 69 tests
+   passing. Reported what was still left: the placeholders in ai_usage.txt, nothing pushed yet,
+   the README typo and the unused ':' token. I pasted the last two into session 1 (its prompt 9).
+
+3. Prompts:
+   "now, please"
+   "please sonehow separate this session for the other"
+
+   What the AI did:
+   Session 1 had already fixed the typo and the ':' token, so the only file this session changed
+   is this one. It filled in the two lines at the end and split this log into the two sessions.
+
+
+What I took as it was and what I changed
+----------------------------------------
+- Taken as it was: the lexer, parser, AST, test script, tests and README text written by the AI.
+- Mine: the whole language design (session 1, prompts 3, 5, 6 and 7), the name and the lore idea
+  (session 1, prompt 4).
+- Changed by me after review: nothing; the code, tests and docs are submitted as the AI
+  wrote them, with the changes I asked for in session 1, prompts 5-9.
+
+Chat transcript: there is no shareable link (Claude Code desktop sessions). Every prompt I
+sent in both sessions is quoted above exactly as I wrote it, in order.

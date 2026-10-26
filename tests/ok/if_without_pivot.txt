@@ -1,0 +1,4 @@
+sliding doze x post 0 no_bap
+spot x in_tune 0 {
+    x post 1 no_bap
+}
