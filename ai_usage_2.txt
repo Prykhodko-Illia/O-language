@@ -1,0 +1,255 @@
+AI usage log - Project Stage 2 (code generation, functions & structures)
+=======================================================================
+
+Tool:    Claude Code (Claude desktop app, Code tab)
+Model:   Claude Opus 5.5 (claude-opus-5-5)
+Dates:   2026-10-26 - 2026-10-27
+Setup:   The AI read the stage PDF (w07-project-stage2.pdf), read my Practice code in
+         ~/Study/compilers (practice-8: the semantic pass, the llvmlite code generator, the test
+         script, the CI workflow and the pre-push hook) and my Stage 1 code in ~/Study/compilers-proj,
+         and created and edited the files in ~/Study/compilers-proj on my Mac. The tests ran in my
+         Multipass VM noble-compilers (Ubuntu 24.04, LLVM 18, llvmlite in ~/lcd), where the AI
+         mounted the project at ~/compilers-proj. Commits on the stage2 branch were made under my
+         own git identity; no commit has the AI as an author or co-author. I push, open the pull
+         request and request the review myself.
+
+How the work was split. I asked for a fixed order: analysis -> my decisions -> design -> code,
+one feature per commit. The AI first explained what the stage needs and which choices were mine,
+then asked me every decision as a multiple-choice question with its recommendation, then showed a
+design of the final result, and only after I approved it wrote the code. The language decisions
+(every new keyword, the syntax of squads, literals and member calls, the name lookup rule, what
+print and exit do, the overflow and mutation rules, the runtime messages) are mine: I picked them
+from the options listed below. The AI wrote the implementation, the tests and the documentation.
+
+One session only. Below is every prompt I sent, quoted as written, and every answer I picked in
+the question forms, followed by what the AI did.
+
+
+=====================================
+SESSION 1 - analysis, design and code
+=====================================
+
+1. Prompt:
+   [attached w07-project-stage2.pdf]
+   "Привіт, подивись на це завдання
+
+   Після stage-1, що ми робиил тепер ми переходимо до stage 2
+   в папці 'compilers' тепер з'явились зміни із новими принципами та логікою, тому перед виконанням
+   переглянь, в якому стилі написаний код
+
+   Тепер перейдемо до самого завдання, спершу не пиши жоден код. Наш ланцюг буде таким: Ти
+   поясниш мені,щ о потрібно зробити самостійно особисто мені, які рішення я можу прийняти, якщо
+   такі є - та отримаєш мою відповідь тут. Все,що ти зможег робити самостійно - бцдеш робити це так
+
+   Тобто - аналіз - рішення - дезайн змін (фінального результату) - імплементація (нова фіча -
+   новий коміт)"
+
+   What the AI did:
+   Read the PDF, the practice-8 code (visitor accept(), a separate semantic pass that leaves
+   type/decl/indices on the tree, the llvmlite code generator, the lli test runner) and my Stage 1
+   code. Wrote no code. Explained what only I can do (merge the Stage 1 pull request, write the
+   "what I understood" part of this file, the pull request and Moodle) and listed the decisions
+   D1-D19 and P1-P5 with a recommendation for each, plus a plan of commits. It noted that the
+   deadline was the next day.
+
+
+2. Prompt:
+   "я змерджив та запуллив зміни - тепер почергово запитуй у мене стосовно рішень та дай мені
+   варіанти між якими обирати"
+
+   What the AI did:
+   Checked that the Stage 1 pull request was merged on GitHub, then asked the decisions in six
+   rounds of multiple-choice questions, with examples of each option. My answers, as I picked or
+   typed them:
+
+   Round 1
+     D1  keyword for a structure                       -> "squad"
+     D3  how an object is created                      -> "запитай це пізніше - і заодно покажи,
+                                                           як це буде виглядати у довшому вигляді"
+     D4  field access and member calls                 -> "Крапка . (Recommended)"
+     D5  name of read                                  -> "finna_hear"   (typed by me, not an option)
+   Round 2
+     D2  fields and member functions in a squad        -> "Спершу поля (Recommended)"
+     D6  how air_out prints an object                  -> "Point{x: 3, y: 4} (Recommended)"
+     D7  how a line (bool) is printed                  -> "true / false (Recommended)"
+     D8  what scat does                                -> "Друк + вихід будь-де (Recommended)"
+   Round 3 (D3 again, with whole programs for each option)
+     D3  how an object is created                      -> "post Point{3, 4}"
+                                                          (a literal is an expression, usable
+                                                          anywhere; not the recommended {3, 4})
+     D9  pab_on for the new constructs                 -> "Ланцюги + об'єкти (Recommended)"
+   Round 4
+     D10 what a drill body sees                        -> "Без глобальних (Recommended)"
+     D12 a typed drill that can end without cuh        -> "Помилка компіляції (Recommended)"
+     D13 overflow checks                               -> "Семантика + runtime (Recommended)"
+     D19 telling `spot flag {` from `Point{3, 4}`      -> "За іменами squad (Recommended)"
+   Round 5
+     D11 type rules                                    -> "Розширення doze→fawty (Recommended)"
+     D14 what a broken on_the_guys does                -> "Тематичне повідомлення"
+                                                          (a message in the lore of the language,
+                                                          not the recommended plain one)
+     D15 whole objects                                 -> "Без p post q (Recommended)"
+     D16 which member functions are mutating           -> "Транзитивно (Recommended)"
+   Round 6
+     P2  where LLVM and llvmlite run                   -> "VM noble-compilers (Recommended)"
+     P3  extras                                        -> "CI GitHub Actions", "pre-push hook",
+                                                          "--ast-checked", "VS Code підсвітка"
+     P4  the Stage 1 tests whose .expected is an AST   -> "Перейменувати в .ast (Recommended)"
+     D14b runtime errors in the lore too               -> "Так, усе в лорі (Recommended)"
+
+
+3. Prompt:
+   "Так, покажи дизайн фінального результату."
+
+   What the AI did:
+   Showed the design: an example program and its output, the new grammar rules, the parser and
+   the AST nodes and their --ast labels, the semantic pass (tables, checks, the fields it leaves
+   on the tree), the code generator (names in the IR, structs, gep, member functions, runtime
+   checks, printf/scanf/exit), the test layout, the README outline and the list of commits. It
+   proposed three more points, D-1 to D-3: a constant is computed exactly and emitted as one
+   number of the type it lands in; every block is a scope and may shadow an outer name; lines
+   after cuh or scat are allowed and never run.
+
+
+4. Prompt:
+   "Дизайн затверджую, Д-1–Д-3 теж. Створюй stage2, монтуй VM і починай з коміту 1."
+
+   What the AI did:
+   Updated main from origin, created the stage2 branch, mounted the project into the VM, ran the
+   Stage 1 tests there (69 passed), and made commit 1: accept(visitor) on every AST node.
+
+
+5. Prompt:
+   "перероби коміт - не додавай себе коавтором - потім продовжуй"
+
+   What the AI did:
+   Rewrote commit 1 without the "Co-Authored-By: Claude" line (it was not pushed yet) and made
+   every later commit without it. Then made commit 2, the semantic pass for the Stage 1 rules:
+   names and scopes, types, drills and calls, cuh on every path, constant folding through tucked
+   variables, --ast-checked, 27 error tests, and a README table of rules, each with a test that
+   follows it and a test that breaks it. The line `doze from_names post max bump 1` of the Stage 1
+   test overflow_limits became an error (as the Stage 1 README had announced) and moved to its
+   own error test.
+   While writing it, the AI found that `fawty big post 3` then `doze small post big` passed,
+   because big was folded into the constant 3. It changed the rule so that a constant with a
+   name keeps the type of its names (widened only when its value needs it) and only a constant
+   of numbers alone takes the narrowest type; it told me so and asked whether I wanted it
+   otherwise.
+
+
+6. Prompt:
+   "Так, продовжуй з комітом 3."
+
+   What the AI did:
+   Commit 3: src/codegen.py (llvmlite builder: i32/i64/i1, spot/pivot as basic blocks, one
+   @"drill.NAME" per drill declared before any body, the top level as main), runtime checks
+   (overflow intrinsics, division by 0 and MIN / -1, on_the_guys) printing one line in the lore
+   and calling exit(1), scat through printf and exit(0), the compile mode of compiler.py (no
+   output file on an error), run_tests.sh compiling and running every test under lli with
+   NAME.in as input, the Stage 1 AST dumps moved to NAME.ast, full_compiler.sh, 15 end-to-end
+   tests with their output written by hand, and the README sections for all of it. One of its own
+   expected files had a wrong column (4:16 instead of 4:13); the test found it and it fixed the
+   .expected file.
+
+
+7. Prompt:
+   "Так, продовжуй з комітом 4."
+
+   What the AI did:
+   Commit 4, squads: "." and "squad" in the lexer; squad, field, place, literal and squad types in
+   the parser (it keeps the names of the squads declared so far, D19); the squad table, field
+   chains, literals and the sliding-at-every-link rule in the semantic pass; identified struct
+   types, gep by index, insertvalue literals and copies in the code generator; 7 end-to-end and
+   23 error tests; grammar.ebnf and README. Three Stage 1 error messages now list "or a squad"
+   among the types, so their .expected files changed (same positions).
+
+
+8. Prompt:
+   "Не зупиняйся після кожного коміту: роби коміти 5–7 підряд, потім покажи результат."
+
+   What the AI did:
+   Commit 5, member functions: declared in a squad after its fields; called as obj.f(),
+   c.center.f() or f() inside another member of the same squad; the lookup rule (parameters and
+   variables, then fields, never the top level); the transitive mutation rule computed to a fixed
+   point; @"Point.lift"(this, ...) in the IR; 6 end-to-end and 18 error tests.
+   Commit 6: finna_hear() through scanf (with a runtime error when there is no number) and
+   air_out of an object by walking the squad's field table; the example from the PDF and the
+   design program as tests with NAME.in.
+   Commit 7: the GitHub Actions workflow and the pre-push hook, adapted from my practice.
+   177 tests passing in the VM.
+
+
+9. Prompt:
+   "Роби коміт 8 (фінальний прохід README і grammar.ebnf), потім чернетку ai_usage_2.txt."
+
+   What the AI did:
+   Commit 8: one grammar rule for calls instead of two overlapping ones, the notes of the grammar
+   extended to squads and member functions, the whole program and the --ast / --ast-checked dumps
+   in the README (checked against the real output), and a table of what each construct becomes
+   in the IR. Then wrote this file as a draft.
+
+
+10. Prompt:
+   "де сказано, що ai_usage це має бути повністю мій текст?
+
+   я готовий лишите пару слів в кінці репорту, якщо це допустимо, а основний файл ти розпишеш
+   так, як тут є"
+
+   What the AI did:
+   Answered from the PDF: only the "what you understood" part has to be in my own words ("a few
+   sentences"); the tools, the prompts and what was taken or changed may be written by the AI as
+   long as they are complete and true. It advised a few sentences rather than a couple of words.
+
+
+11. Prompt:
+   "ок, тоді давай його вже у самому кінці будемо заповнювати"
+
+   What the AI did:
+   Left the "What I understood" section for the very end and kept this file out of the commits
+   until it is written.
+
+
+12. Prompt:
+   "Зроби VS Code-підсвітку окремим комітом, опиши її в README і додай у чернетку ai_usage_2.txt."
+
+   What the AI did:
+   Wrote editors/vscode: a VS Code extension with a TextMate grammar (types, keywords, word
+   operators, merch/woof, air_out, finna_hear, no_bap, pab_on, strings, numbers, lowkey comments,
+   squad and drill names, squad types, literals, fields and member calls) and a language
+   configuration (lowkey as the line comment, brackets, indentation). A highlighter cannot know
+   the names of the squads, so at first `spot ok {` coloured ok as a type; the AI made a literal
+   only a name written right against its '{', as in the compiler's examples. It checked the
+   grammar with vscode-textmate and vscode-oniguruma (the engine VS Code uses), installed in a
+   scratch folder outside the repository, over every program in tests/, described the extension
+   and its installation in the README, and committed it on its own. It added prompts 10-12 here.
+
+
+What I took as it was and what I changed
+----------------------------------------
+- Language design (Task 1): mine. Every keyword and syntax choice of Stage 2 is one of my answers
+  above; "squad", the literal Point{3, 4}, "finna_hear" and the lore messages are the ones where
+  I did not take the AI's recommendation.
+- Lexer and parser (Task 2): written by the AI on top of my Stage 1 code; taken as it was.
+- Semantic pass and code generation (Task 3): written by the AI, following the structure of my
+  practice-8 code; taken as it was. The rule for constants with names was the AI's correction of
+  its own first version (prompt 5); I kept it.
+- Tests (Task 4): written by the AI; the expected output of every end-to-end test was written by
+  hand from the program and then compared with what the program printed, not copied from it.
+- README, grammar.ebnf, CI workflow, pre-push hook: written by the AI; taken as it was.
+- Extra beyond the requirements: the VS Code highlighting in editors/vscode (prompt 12), which I
+  picked among the extras in prompt 2; written by the AI and taken as it was.
+- Changed by me: the commit attribution (prompt 5): no commit names the AI as an author.
+
+
+What I understood (in my own words)
+-----------------------------------
+So, the main goal of the practice was to update the language: add functions, structures with fields, member functions, read and print.
+I took a part in making desicions fot the names and design of the language with keeping the lore.
+
+To summarize, this stage 2 is actually combination of what was added in our practices 5, 6, 7, but with original legend from stage 1.
+Other milepoints there were: extending the lexer and the recursive-descent parser, A separate pass over the AST, before code generation, code generation part and tests covering.
+So, mainly, I understood it from our weekly practices and lectures. Here, is just copying the logic.
+
+Chat transcript: there is no shareable link (Claude Code desktop session). Every prompt I sent is
+quoted above exactly as I wrote it, in order, and every answer I picked in the question forms is
+listed under prompt 2.
