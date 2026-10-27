@@ -1,0 +1,5 @@
+squad Point {
+    doze x no_bap
+}
+Point a post Point{1} no_bap
+scat a no_bap

@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Runs ./run_tests.sh before every git push and stops the push if a test fails.
+# Turn it on once per clone:  git config core.hooksPath githooks
+# Skip it for one push:       git push --no-verify
+#
+# The tests need lli and llvmlite. Where they are missing (on macOS), the hook runs the
+# tests in the Multipass VM that has this repository mounted:
+#   COMPILERS_VM        the VM name                       (default: noble-compilers)
+#   O_LANGUAGE_VM_REPO  the repository inside the VM      (default: ~/compilers-proj)
+#   COMPILERS_VM_VENV   the llvmlite venv inside the VM   (default: ~/lcd)
+# The tests run on the working tree, so uncommitted changes are tested too.
+
+cd "$(git rev-parse --show-toplevel)" || exit 1
+log="$(git rev-parse --git-dir)/pre-push.log"
+
+if command -v lli >/dev/null && python3 -c 'import llvmlite' 2>/dev/null; then
+    echo "pre-push: running the tests"
+    ./run_tests.sh > "$log"
+elif command -v multipass >/dev/null; then
+    vm=${COMPILERS_VM:-noble-compilers}
+    echo "pre-push: running the tests in the VM $vm"
+    multipass exec "$vm" -- bash -lc \
+        "source ${COMPILERS_VM_VENV:-~/lcd}/bin/activate && cd ${O_LANGUAGE_VM_REPO:-~/compilers-proj} && ./run_tests.sh" \
+        > "$log"
+else
+    echo "pre-push: cannot run the tests: no lli and llvmlite here, and no multipass" >&2
+    echo "pre-push: push with --no-verify to skip them" >&2
+    exit 1
+fi
+status=$?
+
+# Only the failures and the summary; the whole output stays in .git/pre-push.log.
+grep -v '^PASS' "$log"
+if [ "$status" -ne 0 ]; then
+    echo "pre-push: the tests failed, nothing was pushed (full output in $log)" >&2
+    exit 1
+fi

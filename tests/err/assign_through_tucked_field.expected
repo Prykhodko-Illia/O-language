@@ -1,0 +1,1 @@
+compilation error: line 8:3: cannot post to 'c.center.x': field 'center' of Circle is tucked

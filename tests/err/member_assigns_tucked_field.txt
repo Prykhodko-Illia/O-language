@@ -1,0 +1,6 @@
+squad Point {
+    doze x no_bap
+    drill reset() {
+        x post 0 no_bap
+    }
+}

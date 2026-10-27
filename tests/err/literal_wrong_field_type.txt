@@ -1,0 +1,5 @@
+squad Point {
+    doze x no_bap
+    line visible no_bap
+}
+Point p post Point{1, 2} no_bap

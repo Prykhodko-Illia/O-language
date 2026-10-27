@@ -20,7 +20,9 @@
  *   "on_the_guys" "air_out"                        assert, print
  *   "no_bap"                                       end of a simple statement
  *   "pab_on"                                       start of an inverted line
- *   "{" "}" "(" ")" ","                            punctuation, one byte each
+ *   "squad"                                        a structure: a named type with fields
+ *   "finna_hear"                                   read one integer from standard input
+ *   "{" "}" "(" ")" "," "."                        punctuation, one byte each
  *   ident     letters, digits and _, not starting with a digit, and not a keyword
  *   number    decimal digits, no sign, at most 9223372036854775807 (the fawty maximum)
  *   string    bytes between two '"' on one line; only air_out takes one
@@ -29,17 +31,30 @@
  * a statement ends with "no_bap". The word "lowkey" starts a comment that runs to the end
  * of the line; it never becomes a token, so it is not in the grammar.
  *
- * What this grammar deliberately cannot say (those are semantics, checked in the next
- * stage): that a name is declared before it is used and only once, that only a "sliding"
- * variable is assigned with "post", every type rule, and the range of a value that
- * involves names (a constant initialiser is already checked against its type by the
- * parser: doze -2147483648 .. 2147483647, fawty -9223372036854775808 .. 9223372036854775807), that "cuh" appears only inside a "drill", and that a call
- * passes as many arguments as the function has parameters.
+ * What this grammar deliberately cannot say (those are semantics, checked by the semantic
+ * pass in src/semantic.py and listed, rule by rule, in the README): that a name is
+ * declared before it is used and only once, that only a "sliding" variable is assigned
+ * with "post", every type rule, the range of a constant that involves names (a constant
+ * initialiser of numbers only is already checked against its type by the parser: doze
+ * -2147483648 .. 2147483647, fawty -9223372036854775808 .. 9223372036854775807), that
+ * "cuh" appears only inside a "drill" and that a drill with a result type always reaches
+ * one, that a call passes as many arguments as the function has parameters, of their
+ * types, that a literal has one value per field, that a place names fields that exist and
+ * is "sliding" at every link when it is posted to, how a name is found inside a member
+ * function, and that a member function that changes its object is called only on a
+ * "sliding" one.
  *)
 
 program   ::= { item }
 
-item      ::= function | statement
+item      ::= squad | function | statement
+
+(* A squad: a named type with typed fields, each tucked or "sliding", then its member
+ * functions, written like any function. Its name is a type from the "{" on, everywhere
+ * below it -- in its own member functions too. *)
+squad     ::= "squad" ident "{" field { field } { function } "}"
+
+field     ::= [ "sliding" ] type ident "no_bap"
 
 function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
 
@@ -51,11 +66,15 @@ statement ::= decl | assign | call_stmt | if | return | exit | assert | print | 
 
 decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
 
-type      ::= "doze" | "fawty" | "line"
+type      ::= "doze" | "fawty" | "line" | squad_name
 
-assign    ::= ident "post" expr "no_bap"
+squad_name ::= ident                             (* the name of a squad declared above *)
 
-call_stmt ::= call "no_bap"
+assign    ::= place "post" expr "no_bap"
+
+place     ::= ident { "." ident }                (* a variable, then a field per link *)
+
+call_stmt ::= place args "no_bap"               (* twice(3) no_bap, p.lift(1) no_bap *)
 
 if        ::= "spot" expr block [ "pivot" block ]
 
@@ -74,8 +93,10 @@ print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
  *     pab_on x bump 1 post x          is    x post x bump 1 no_bap
  *     pab_on merch cuh                is    cuh merch no_bap
  *     pab_on 0 scat                   is    scat 0 no_bap
+ *     pab_on Point{3, 4} post p Point is    Point p post Point{3, 4} no_bap
+ *     pab_on 9 post p.y               is    p.y post 9 no_bap
  *)
-inverted  ::= "pab_on" expr ( "post" ident [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
+inverted  ::= "pab_on" expr ( "post" place [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
 
 expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
 
@@ -83,9 +104,19 @@ arith     ::= term { ( "bump" | "tuck_in" ) term }
 
 term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
 
-factor    ::= number | "merch" | "woof" | call | ident | "(" expr ")"
+factor    ::= number | "merch" | "woof" | read | literal | place [ args ] | "(" expr ")"
 
-call      ::= ident "(" [ expr { "," expr } ] ")"
+read      ::= "finna_hear" "(" ")"               (* one doze from the standard input *)
+
+literal   ::= squad_name "{" expr { "," expr } "}"   (* one value per field, in order *)
+
+args      ::= "(" [ expr { "," expr } ] ")"
+
+(* A place with args is a call. With no "." it calls a drill -- twice(3); inside a member
+ * function, a member function of its squad on the same object -- tick(). With a "." it
+ * is a member call: the last name of the place is the member function, the rest is the
+ * object, so c.center.lift(1) calls lift on c.center. A call is only ever the end of a
+ * chain: f().x is not in the grammar. A place without args is a variable or a field. *)
 
 (* ---- Tokens: how the lexer spells the terminals (src/lexer.py) ----------------------- *)
 
@@ -110,6 +141,10 @@ comment_byte ::= (* any byte except newline *)
 
 newline   ::= (* the byte 10 *)
 
+(* "." is one byte of its own, like "(": c.center.x is five tokens, c . center . x, and
+ * "10.5" is the number 10, a ".", and the number 5 -- which no rule accepts.
+ *)
+
 (* Spaces, tabs, carriage returns, newlines and comments may stand between any two tokens
  * and are dropped by the lexer. A keyword, a name or a number ends at the first byte that
  * cannot continue it, so "tuck_in" is one token and "bump2" is a name.
@@ -122,11 +157,19 @@ newline   ::= (* the byte 10 *)
  * for a "bump", so "double_back" binds tighter than "bump"; each loop keeps what it has so
  * far as the left child, so 10 tuck_in 3 tuck_in 2 is (10 - 3) - 2.
  *
- * Statements with a block ("spot", "drill") end with "}" and take no "no_bap";
- * every other statement ends with "no_bap". A block always has at least one statement,
- * and a function is declared only at the top level, never inside a block.
+ * Statements with a block ("spot", "drill", "squad") end with "}" and take no "no_bap";
+ * every other statement ends with "no_bap". A block always has at least one statement.
+ * A squad and a function are declared only at the top level, never inside a block; a
+ * member function only inside its squad, after the fields.
  *
- * Two pairs of rules share their first token, C++ style, and the parser eats that token and
- * decides by the next one: after a type, "drill" starts a function and a name starts a
- * declaration; after a name, "post" starts an assignment and "(" a call.
+ * Three pairs of rules share their first token, C++ style, and the parser eats that token
+ * and decides by the next one: after a type, "drill" starts a function and a name starts a
+ * declaration; inside a squad, after a type, "drill" starts a member function and a name a
+ * field; after a place, "post" starts an assignment and "(" a call.
+ *
+ * squad_name and a plain ident are both identifiers: the parser tells them apart by the
+ * names of the squads declared so far. Point p post ... is a declaration because Point
+ * is a squad, Point{3, 4} is a literal for the same reason, and in spot flag { ... } the
+ * "{" opens the block because flag is not. In "pab_on value post place type", a type
+ * after the place makes it a declaration, so that place is a plain name: no ".".
  *)

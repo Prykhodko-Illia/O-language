@@ -1,0 +1,1 @@
+compilation error: line 8:7: cannot call 'lift' on 'p': it changes its object, and 'p' is not sliding

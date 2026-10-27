@@ -1,0 +1,4 @@
+doze drill f(doze a) {
+    doze a post 2 no_bap
+    cuh a no_bap
+}

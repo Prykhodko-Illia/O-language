@@ -2,4 +2,3 @@ doze max post 2147483647 no_bap
 doze min post 0 tuck_in 2147483648 no_bap
 fawty big post 2147483647 bump 1 no_bap
 fawty fmin post 0 tuck_in 9223372036854775807 tuck_in 1 no_bap
-doze from_names post max bump 1 no_bap

@@ -1,0 +1,11 @@
+squad Point {
+    sliding doze x no_bap
+    drill lift(doze dx) {
+        x post x bump dx no_bap
+    }
+}
+squad Circle {
+    Point center no_bap
+}
+sliding Circle c post Circle{Point{1}} no_bap
+c.center.lift(1) no_bap

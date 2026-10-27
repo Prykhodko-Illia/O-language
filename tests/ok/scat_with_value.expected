@@ -1,5 +1,1 @@
-Program
-  Decl code doze tucked
-    Int 3
-  Exit
-    Var code
+Program exit with result 3

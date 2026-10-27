@@ -1,0 +1,6 @@
+drill f() {
+    scat no_bap
+}
+drill f() {
+    scat 1 no_bap
+}

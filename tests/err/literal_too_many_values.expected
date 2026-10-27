@@ -1,0 +1,1 @@
+compilation error: line 4:14: squad 'Point' has 1 field, so Point{...} takes 1 value, got 2

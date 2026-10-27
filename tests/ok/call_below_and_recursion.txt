@@ -1,0 +1,10 @@
+doze x post fact(5) no_bap
+air_out(x) no_bap
+
+doze drill fact(doze n) {
+    spot n in_tune 0 {
+        cuh 1 no_bap
+    } pivot {
+        cuh n double_back fact(n tuck_in 1) no_bap
+    }
+}

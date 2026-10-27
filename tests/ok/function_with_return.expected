@@ -1,9 +1,0 @@
-Program
-  Function add returns fawty
-    Param a doze
-    Param b fawty
-    Body
-      Return
-        BinOp bump (+)
-          Var a
-          Var b

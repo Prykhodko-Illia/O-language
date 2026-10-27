@@ -1,0 +1,8 @@
+squad Point {
+    doze x no_bap
+    doze drill plus(doze d) {
+        cuh x bump d no_bap
+    }
+}
+Point p post Point{1} no_bap
+doze n post p.plus() no_bap
