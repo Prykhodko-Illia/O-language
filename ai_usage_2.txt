@@ -224,6 +224,33 @@ SESSION 1 - analysis, design and code
    and its installation in the README, and committed it on its own. It added prompts 10-12 here.
 
 
+13. Prompt:
+   "Я дописав розділ What I understood у ai_usage_2.txt. Перевір, що заповнювача більше немає,
+   закоміть файл, запуш stage2 і відкрий PR у main з запитом рев'ю від vovaskochko."
+
+   What the AI did:
+   Read the file: my text was not saved to disk yet, so it still showed the placeholder. I
+   interrupted it before it said so.
+
+
+14. Prompt:
+   "commit it"
+
+   What the AI did:
+   Committed ai_usage_2.txt as it was on disk -- by then with my section saved -- and checked
+   that the placeholder was gone. I interrupted it again.
+
+
+15. Prompt (the same as 13, sent again):
+   "Я дописав розділ What I understood у ai_usage_2.txt. Перевір, що заповнювача більше немає,
+   закоміть файл, запуш stage2 і відкрий PR у main з запитом рев'ю від vovaskochko."
+
+   What the AI did:
+   Checked the committed file: my section is there and no placeholder is left. Added prompts
+   13-15 to this list in a commit of their own, ran the tests in the VM, pushed stage2 and opened
+   the pull request into main with a review request for vovaskochko.
+
+
 What I took as it was and what I changed
 ----------------------------------------
 - Language design (Task 1): mine. Every keyword and syntax choice of Stage 2 is one of my answers
