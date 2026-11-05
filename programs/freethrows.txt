@@ -1,0 +1,97 @@
+lowkey Free throws at the O: a session tracker for the court.
+lowkey Every hooper steps to the line and calls each shot -- 1 for a make, 0 for a miss,
+lowkey 9 when they are done. The tracker keeps each hooper's makes, tries and streaks,
+lowkey prints their line, and at the end names the MVP: the best percentage.
+
+squad Hooper {
+    doze number no_bap
+    sliding doze made no_bap
+    sliding doze tries no_bap
+    sliding doze streak no_bap
+    sliding doze best no_bap
+
+    lowkey one shot: a make grows the streak, a miss ends it
+    drill shoot(line made_it) {
+        tries post tries bump 1 no_bap
+        spot made_it {
+            made post made bump 1 no_bap
+            streak post streak bump 1 no_bap
+            spot streak up_on best {
+                best post streak no_bap
+            }
+        } pivot {
+            streak post 0 no_bap
+        }
+    }
+
+    doze drill percent() {
+        spot tries in_tune 0 {
+            cuh 0 no_bap
+        }
+        cuh made double_back 100 breakdown tries no_bap
+    }
+
+    lowkey the percentage, then one ball per make
+    drill report() {
+        air_out("percent:") no_bap
+        air_out(percent()) no_bap
+        laps ball from 1 thru made {
+            air_out("  🏀") no_bap
+        }
+    }
+}
+
+line drill in_range(doze value, doze low, doze high) {
+    spot value down_bad low {
+        cuh woof no_bap
+    }
+    spot value up_on high {
+        cuh woof no_bap
+    }
+    cuh merch no_bap
+}
+
+drill banner() {
+    air_out("🏀 Free throws at the O 🏀") no_bap
+    air_out("How many hoopers on the line? (1 to 5)") no_bap
+}
+
+banner() no_bap
+sliding doze count post finna_hear() no_bap
+run_it_back in_range(count, 1, 5) in_tune woof {
+    air_out("1 to 5 hoopers, run it back:") no_bap
+    count post finna_hear() no_bap
+}
+
+sliding doze mvp post 0 no_bap
+sliding doze mvp_percent post 0 tuck_in 1 no_bap
+laps number from 1 thru count {
+    air_out("Hooper up:") no_bap
+    air_out(number) no_bap
+    air_out("Call your shots: 1 make, 0 miss, 9 done") no_bap
+    sliding Hooper hooper post Hooper{number, 0, 0, 0, 0} no_bap
+    sliding doze shot post finna_hear() no_bap
+    run_it_back shot fugazi 9 {
+        spot shot in_tune 1 {
+            hooper.shoot(merch) no_bap
+        } pivot {
+            spot shot in_tune 0 {
+                hooper.shoot(woof) no_bap
+            } pivot {
+                air_out("1, 0 or 9 only") no_bap
+            }
+        }
+        shot post finna_hear() no_bap
+    }
+    air_out(hooper) no_bap
+    hooper.report() no_bap
+    spot hooper.percent() up_on mvp_percent {
+        mvp post number no_bap
+        mvp_percent post hooper.percent() no_bap
+    }
+}
+
+air_out("MVP of the session, hooper number:") no_bap
+air_out(mvp) no_bap
+air_out("shooting percent:") no_bap
+air_out(mvp_percent) no_bap

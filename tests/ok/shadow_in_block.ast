@@ -1,0 +1,15 @@
+Program
+  Decl x doze tucked
+    Int 1
+  If
+    Cond
+      Bool merch
+    Then
+      Decl x fawty tucked
+        BinOp bump (+)
+          Var x
+          Int 9000000000
+      Print
+        Var x
+  Print
+    Var x

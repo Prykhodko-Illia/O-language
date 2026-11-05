@@ -1,0 +1,4 @@
+squad Point {
+    doze x no_bap
+    fawty x no_bap
+}

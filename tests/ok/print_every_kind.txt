@@ -1,0 +1,8 @@
+sliding doze small post 0 tuck_in 42 no_bap
+sliding fawty big post 9223372036854775807 no_bap
+line yes post small in_tune 0 tuck_in 42 no_bap
+air_out(small) no_bap
+air_out(big) no_bap
+air_out(yes) no_bap
+air_out(yes in_tune woof) no_bap
+air_out("100% real, no cap 🧢") no_bap

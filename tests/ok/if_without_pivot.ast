@@ -1,0 +1,11 @@
+Program
+  Decl x doze sliding
+    Int 0
+  If
+    Cond
+      BinOp in_tune (==)
+        Var x
+        Int 0
+    Then
+      Assign x
+        Int 1

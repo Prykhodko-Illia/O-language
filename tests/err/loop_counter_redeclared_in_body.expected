@@ -1,0 +1,1 @@
+compilation error: line 2:10: 'i' is the counter of this 'laps', declared at line 1:6: the body cannot declare it again

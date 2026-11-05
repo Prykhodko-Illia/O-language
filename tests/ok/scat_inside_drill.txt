@@ -1,0 +1,8 @@
+drill bail(doze code) {
+    air_out("bailing") no_bap
+    scat code no_bap
+    air_out("never printed") no_bap
+}
+air_out("before") no_bap
+bail(9) no_bap
+air_out("after") no_bap

@@ -1,0 +1,37 @@
+lowkey Unused functions, round after round: nobody calls top; top is the only caller of
+lowkey middle, middle the only caller of leaf. Each is called twice, so none of them is
+lowkey inlined: round 1 removes top, round 2 middle, round 3 leaf.
+doze drill leaf(doze n) {
+    cuh n bump 1 no_bap
+}
+doze drill middle(doze n) {
+    cuh leaf(n) bump leaf(n bump 1) no_bap
+}
+doze drill top(doze n) {
+    cuh middle(n) double_back middle(n) no_bap
+}
+
+lowkey A drill that only calls itself has no call from outside: it goes too.
+doze drill spin(doze n) {
+    spot n in_tune 0 {
+        cuh 0 no_bap
+    }
+    cuh spin(n tuck_in 1) no_bap
+}
+
+lowkey Two drills that only call each other keep each other: counting cannot see a cycle.
+doze drill ping(doze n) {
+    spot n in_tune 0 {
+        cuh 0 no_bap
+    }
+    cuh pong(n tuck_in 1) no_bap
+}
+doze drill pong(doze n) {
+    cuh ping(n) no_bap
+}
+
+doze drill used(doze n) {
+    cuh n double_back 10 no_bap
+}
+air_out(used(1)) no_bap
+air_out(used(2)) no_bap

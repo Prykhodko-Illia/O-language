@@ -1,0 +1,4 @@
+fawty drill add(doze a, fawty b) {
+    cuh a bump b no_bap
+}
+fawty x post add(1) no_bap

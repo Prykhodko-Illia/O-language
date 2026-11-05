@@ -1,0 +1,25 @@
+Program
+  Decl shot_clock doze sliding
+    Int 3
+  While run_it_back
+    Cond
+      BinOp fugazi (!=)
+        Var shot_clock
+        Int 0
+    Body
+      Print
+        Var shot_clock
+      Assign shot_clock
+        BinOp tuck_in (-)
+          Var shot_clock
+          Int 1
+  Print
+    String "buzzer"
+  While run_it_back
+    Cond
+      Bool woof
+    Body
+      Print
+        String "never"
+  Print
+    Var shot_clock

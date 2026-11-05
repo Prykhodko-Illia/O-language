@@ -7,29 +7,49 @@ flags -- `sliding` is a boolean, the braces, `post` and `no_bap` leave
 nothing behind, and an operator keeps both its word and the symbol it stands for.
 
     ASTNode
-    +-- ProgramNode        items: [FunctionNode | StmtNode]
-    +-- FunctionNode       name, params: [ParamNode], return_type (or None), body: [StmtNode]
+    +-- ProgramNode        items: [SquadNode | FunctionNode | StmtNode]
+    +-- SquadNode          name, fields: [FieldDeclNode], methods: [FunctionNode]
+    +-- FieldDeclNode      name, type_name, mutable  -- also carries `index`, from the semantic pass
+    +-- FunctionNode       name, params: [ParamNode], return_type (or None), body: [StmtNode],
+    |                      squad (the squad's name for a member function, else None)
     +-- ParamNode          name, type_name
+    +-- ThisParam          type_name  -- the object a member function is called on (semantic pass)
+    +-- CounterNode        name  -- the counter of a laps loop; its type comes from the semantic pass
     +-- StmtNode     (abstract)
     |   +-- DeclNode       name, type_name, mutable, init: ExprNode
-    |   +-- AssignNode     name, value: ExprNode
+    |   +-- AssignNode     name, links: [Link], value: ExprNode   -- c.center.x post 5
     |   +-- CallStmtNode   call: CallNode
     |   +-- IfNode         cond: ExprNode, then_body: [StmtNode], else_body: [StmtNode] or None
+    |   +-- WhileNode      cond: ExprNode, body: [StmtNode]              -- run_it_back
+    |   +-- ForNode        counter: CounterNode, start, end: ExprNode, body: [StmtNode]  -- laps
     |   +-- ReturnNode     value: ExprNode or None
     |   +-- ExitNode       value: ExprNode or None
     |   +-- AssertNode     cond: ExprNode
     |   +-- PrintNode      value: StringNode | ExprNode
     +-- ExprNode     (abstract)
-        +-- BinOpNode      op (the word), symbol ('+', '-', '*', '/', '%', '==', '!='), left, right
+        +-- BinOpNode      op (the word), symbol ('+', '-', '*', '/', '%', '==', '!=', '>', '<'),
+        |                  left, right
         +-- CallNode       name, args: [ExprNode]
+        +-- MemberCallNode target: VarNode | FieldNode, name, args  -- c.center.lift(1)
         +-- VarNode        name
+        +-- FieldNode      name, links: [Link]    -- c.center.x: the variable, then each field
+        +-- LiteralNode    type_name, values: [ExprNode]   -- Point{3, 4}: one value per field
+        +-- ReadNode                          -- finna_hear(): one doze from the standard input
         +-- IntNode        value
         +-- BoolNode       value (True / False)
         +-- StringNode     value   (only as the argument of air_out)
 
+A type is a name: "doze", "fawty", "line", or the name of a squad.
+
 Every node keeps the line and column of the token it came from, so the later stages
-can point at an error without having any tokens left. The tree holds names, numbers,
-flags and child nodes: never a token.
+can point at an error without having any tokens left. Each `.name` of a field chain is
+a Link with a position of its own, so an unknown field is reported at the field. The
+tree holds names, numbers, flags and child nodes: never a token.
+
+`accept(visitor)` calls the visitor method for that node kind -- visit_decl for a
+DeclNode, visit_binop for a BinOpNode -- so each walk over the tree (the semantic pass,
+then the code generator) is a class of its own, and a node does not know what is done
+with it. Group has none: it exists only in the dump.
 
 (Not named ast.py: that would shadow the standard library's `ast` module.)
 """
@@ -47,11 +67,18 @@ class ASTNode:
     def children(self):
         return []
 
-    def dump(self, depth=0):
-        """The tree as text, one node per line, children indented by two spaces."""
-        out = "  " * depth + self.label() + "\n"
+    def note(self):
+        """What the semantic pass found out about this node, for --ast-checked; empty
+        before the pass, so --ast is the same either way."""
+        return ""
+
+    def dump(self, depth=0, notes=True):
+        """The tree as text, one node per line, children indented by two spaces. Without
+        `notes` it is the tree as --ast shows it, even after the semantic pass has run --
+        how --optimize --ast prints the tree the optimizer left."""
+        out = "  " * depth + self.label() + (self.note() if notes else "") + "\n"
         for child in self.children():
-            out += child.dump(depth + 1)
+            out += child.dump(depth + 1, notes)
         return out
 
 
@@ -76,22 +103,56 @@ class StmtNode(ASTNode):
 
     inverted = False                      # written back to front, on a pab_on line
 
-    def dump(self, depth=0):
-        out = super().dump(depth)
+    def dump(self, depth=0, notes=True):
+        out = super().dump(depth, notes)
         if self.inverted:                 # mark the first line of this node
             head, rest = out.split("\n", 1)
             out = head + " (inverted)\n" + rest
         return out
 
 
+def where(decl):
+    """Where a name was declared, for --ast-checked: a field of the object has no line."""
+    if isinstance(decl, ThisParam):
+        return "a field of the object"
+    return f"declared at {decl.line}:{decl.col}"
+
+
 class ExprNode(ASTNode):
     """An expression: it produces a value."""
+
+    def note(self):
+        if not hasattr(self, "type"):
+            return ""
+        out = f"  : {self.type or 'nothing'}"
+        if self.const is not None:
+            out += f" = {self.const}"
+        decl = getattr(self, "decl", None)
+        if decl is not None:
+            out += f"  ({where(decl)})"
+        if getattr(self, "indices", None):
+            out += f"  (field indices {self.indices})"
+        return out
+
+
+class Link:
+    """One `.name` of a field chain, with the position of the name."""
+
+    def __init__(self, name, line, col):
+        self.name = name
+        self.line = line
+        self.col = col
+
+
+def chain(name, links):
+    """A chain as the program wrote it: c.center.x."""
+    return ".".join([name, *(link.name for link in links)])
 
 
 class ProgramNode(ASTNode):
     def __init__(self, line, col, items):
         super().__init__(line, col)
-        self.items = items                # [FunctionNode | StmtNode]
+        self.items = items                # [SquadNode | FunctionNode | StmtNode]
 
     def label(self):
         return "Program"
@@ -99,20 +160,68 @@ class ProgramNode(ASTNode):
     def children(self):
         return self.items
 
+    def accept(self, visitor):
+        return visitor.visit_program(self)
+
+
+class SquadNode(ASTNode):
+    def __init__(self, line, col, name, fields, methods):
+        super().__init__(line, col)       # position of the name
+        self.name = name
+        self.fields = fields              # [FieldDeclNode], at least one, in declaration order
+        self.methods = methods            # [FunctionNode], each with squad == name
+
+    def label(self):
+        return f"Squad {self.name}"
+
+    def children(self):
+        return [*self.fields, *self.methods]
+
+    def accept(self, visitor):
+        return visitor.visit_squad(self)
+
+
+class FieldDeclNode(ASTNode):
+    def __init__(self, line, col, name, type_name, mutable):
+        super().__init__(line, col)       # position of the name
+        self.name = name
+        self.type_name = type_name        # "doze" | "fawty" | "line" | a squad declared above
+        self.mutable = mutable
+
+    def label(self):
+        return f"Field {self.name} {self.type_name} {'sliding' if self.mutable else 'tucked'}"
+
+    def note(self):
+        return f"  (index {self.index})" if hasattr(self, "index") else ""
+
+    def accept(self, visitor):
+        return visitor.visit_field_decl(self)
+
 
 class FunctionNode(ASTNode):
-    def __init__(self, line, col, name, params, return_type, body):
+    def __init__(self, line, col, name, params, return_type, body, squad=None):
         super().__init__(line, col)       # position of the name
         self.name = name
         self.params = params              # [ParamNode]
-        self.return_type = return_type    # "doze" | "fawty" | "line" | None
+        self.return_type = return_type    # "doze" | "fawty" | "line" | a squad | None
         self.body = body                  # [StmtNode], at least one
+        self.squad = squad                # the squad's name for a member function, else None
 
     def label(self):
+        if self.squad is not None:
+            return f"Member {self.name} of {self.squad} returns {self.return_type or 'nothing'}"
         return f"Function {self.name} returns {self.return_type or 'nothing'}"
+
+    def note(self):
+        if not hasattr(self, "mutating"):
+            return ""
+        return "  (mutating: changes its object)" if self.mutating else "  (reads its object only)"
 
     def children(self):
         return [*self.params, Group("Body", self.body)]
+
+    def accept(self, visitor):
+        return visitor.visit_function(self)
 
 
 class ParamNode(ASTNode):
@@ -123,6 +232,42 @@ class ParamNode(ASTNode):
 
     def label(self):
         return f"Param {self.name} {self.type_name}"
+
+    def accept(self, visitor):
+        return visitor.visit_param(self)
+
+
+class ThisParam:
+    """The object a member function is called on: made by the semantic pass, never written
+    in a program. A field named in the body resolves to it, with the field first in the
+    chain; the code generator gives it the function's first parameter, a pointer."""
+
+    mutable = True                        # whether a write is allowed is decided at each call
+    line = col = 0
+
+    def __init__(self, type_name):
+        self.type_name = type_name
+
+
+class CounterNode(ASTNode):
+    """The counter of `laps i from a thru b`: a tucked variable that lives in the loop's
+    body, one value per round. The semantic pass gives it its type -- the wider of the
+    two bounds -- and every `i` in the body resolves to this node."""
+
+    mutable = False                       # the loop moves it, the body only reads it
+
+    def __init__(self, line, col, name):
+        super().__init__(line, col)       # position of the name
+        self.name = name
+
+    def label(self):
+        return f"Counter {self.name}"
+
+    def note(self):
+        return f"  : {self.type_name}" if hasattr(self, "type_name") else ""
+
+    def accept(self, visitor):
+        return visitor.visit_counter(self)
 
 
 class DeclNode(StmtNode):
@@ -139,18 +284,34 @@ class DeclNode(StmtNode):
     def children(self):
         return [self.init]
 
+    def accept(self, visitor):
+        return visitor.visit_decl(self)
+
 
 class AssignNode(StmtNode):
-    def __init__(self, line, col, name, value):
+    def __init__(self, line, col, name, value, links=()):
         super().__init__(line, col)       # position of the name
         self.name = name
+        self.links = list(links)          # [Link]: empty for a variable, the fields for c.center.x
         self.value = value
 
     def label(self):
-        return f"Assign {self.name}"
+        return f"Assign {chain(self.name, self.links)}"
+
+    def note(self):
+        decl = getattr(self, "decl", None)
+        if decl is None:
+            return ""
+        out = f"  ({where(decl)})"
+        if self.indices:
+            out += f"  (field indices {self.indices})"
+        return out
 
     def children(self):
         return [self.value]
+
+    def accept(self, visitor):
+        return visitor.visit_assign(self)
 
 
 class CallStmtNode(StmtNode):
@@ -163,6 +324,9 @@ class CallStmtNode(StmtNode):
 
     def children(self):
         return [self.call]
+
+    def accept(self, visitor):
+        return visitor.visit_call_stmt(self)
 
 
 class IfNode(StmtNode):
@@ -181,6 +345,44 @@ class IfNode(StmtNode):
             out.append(Group("Else", self.else_body))
         return out
 
+    def accept(self, visitor):
+        return visitor.visit_if(self)
+
+
+class WhileNode(StmtNode):
+    def __init__(self, line, col, cond, body):
+        super().__init__(line, col)       # position of 'run_it_back'
+        self.cond = cond                  # ExprNode: a line, checked before every round
+        self.body = body                  # [StmtNode], at least one
+
+    def label(self):
+        return "While run_it_back"
+
+    def children(self):
+        return [Group("Cond", [self.cond]), Group("Body", self.body)]
+
+    def accept(self, visitor):
+        return visitor.visit_while(self)
+
+
+class ForNode(StmtNode):
+    def __init__(self, line, col, counter, start, end, body):
+        super().__init__(line, col)       # position of 'laps'
+        self.counter = counter            # CounterNode
+        self.start = start                # ExprNode: the first value, after 'from'
+        self.end = end                    # ExprNode: the last value, after 'thru' -- included
+        self.body = body                  # [StmtNode], at least one
+
+    def label(self):
+        return f"For laps {self.counter.name}"
+
+    def children(self):
+        return [self.counter, Group("From", [self.start]), Group("Thru", [self.end]),
+                Group("Body", self.body)]
+
+    def accept(self, visitor):
+        return visitor.visit_for(self)
+
 
 class ReturnNode(StmtNode):
     def __init__(self, line, col, value):
@@ -192,6 +394,9 @@ class ReturnNode(StmtNode):
 
     def children(self):
         return [self.value] if self.value is not None else []
+
+    def accept(self, visitor):
+        return visitor.visit_return(self)
 
 
 class ExitNode(StmtNode):
@@ -205,6 +410,9 @@ class ExitNode(StmtNode):
     def children(self):
         return [self.value] if self.value is not None else []
 
+    def accept(self, visitor):
+        return visitor.visit_exit(self)
+
 
 class AssertNode(StmtNode):
     def __init__(self, line, col, cond):
@@ -216,6 +424,9 @@ class AssertNode(StmtNode):
 
     def children(self):
         return [self.cond]
+
+    def accept(self, visitor):
+        return visitor.visit_assert(self)
 
 
 class PrintNode(StmtNode):
@@ -229,10 +440,13 @@ class PrintNode(StmtNode):
     def children(self):
         return [self.value]
 
+    def accept(self, visitor):
+        return visitor.visit_print(self)
+
 
 SYMBOLS = {
     "bump": "+", "tuck_in": "-", "double_back": "*", "breakdown": "/", "scraps": "%",
-    "in_tune": "==", "fugazi": "!=",
+    "in_tune": "==", "fugazi": "!=", "up_on": ">", "down_bad": "<",
 }
 
 
@@ -250,6 +464,9 @@ class BinOpNode(ExprNode):
     def children(self):
         return [self.left, self.right]
 
+    def accept(self, visitor):
+        return visitor.visit_binop(self)
+
 
 class CallNode(ExprNode):
     def __init__(self, line, col, name, args):
@@ -263,6 +480,9 @@ class CallNode(ExprNode):
     def children(self):
         return self.args
 
+    def accept(self, visitor):
+        return visitor.visit_call(self)
+
 
 class VarNode(ExprNode):
     def __init__(self, line, col, name):
@@ -271,6 +491,68 @@ class VarNode(ExprNode):
 
     def label(self):
         return f"Var {self.name}"
+
+    def accept(self, visitor):
+        return visitor.visit_var(self)
+
+
+def written(target):
+    """A call target as the program wrote it: p, c.center."""
+    return chain(target.name, getattr(target, "links", []))
+
+
+class MemberCallNode(ExprNode):
+    def __init__(self, line, col, target, name, args):
+        super().__init__(line, col)       # position of the member function's name
+        self.target = target              # VarNode | FieldNode: the object
+        self.name = name
+        self.args = args                  # [ExprNode]
+
+    def label(self):
+        return f"Chain {written(self.target)} ends in member call {self.name} ({len(self.args)} args)"
+
+    def children(self):
+        return [self.target, *self.args]
+
+    def accept(self, visitor):
+        return visitor.visit_member_call(self)
+
+
+class FieldNode(ExprNode):
+    def __init__(self, line, col, name, links):
+        super().__init__(line, col)       # position of the variable's name
+        self.name = name
+        self.links = links                # [Link], at least one
+
+    def label(self):
+        return f"Field access {chain(self.name, self.links)}"
+
+    def accept(self, visitor):
+        return visitor.visit_field(self)
+
+
+class LiteralNode(ExprNode):
+    def __init__(self, line, col, type_name, values):
+        super().__init__(line, col)       # position of the squad's name
+        self.type_name = type_name
+        self.values = values              # [ExprNode], one per field, in field order
+
+    def label(self):
+        return f"Literal {self.type_name} ({len(self.values)} values)"
+
+    def children(self):
+        return self.values
+
+    def accept(self, visitor):
+        return visitor.visit_literal(self)
+
+
+class ReadNode(ExprNode):
+    def label(self):
+        return "Read finna_hear"
+
+    def accept(self, visitor):
+        return visitor.visit_read(self)
 
 
 class IntNode(ExprNode):
@@ -281,6 +563,9 @@ class IntNode(ExprNode):
     def label(self):
         return f"Int {self.value}"
 
+    def accept(self, visitor):
+        return visitor.visit_int(self)
+
 
 class BoolNode(ExprNode):
     def __init__(self, line, col, value):
@@ -290,6 +575,9 @@ class BoolNode(ExprNode):
     def label(self):
         return f"Bool {'merch' if self.value else 'woof'}"
 
+    def accept(self, visitor):
+        return visitor.visit_bool(self)
+
 
 class StringNode(ExprNode):
     def __init__(self, line, col, value):
@@ -298,3 +586,6 @@ class StringNode(ExprNode):
 
     def label(self):
         return f'String "{self.value}"'
+
+    def accept(self, visitor):
+        return visitor.visit_string(self)

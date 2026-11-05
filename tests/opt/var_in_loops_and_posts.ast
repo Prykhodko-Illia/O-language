@@ -1,0 +1,61 @@
+Program
+  Squad Point
+    Field x doze sliding
+    Field y doze tucked
+  Decl total doze sliding
+    Int 0
+  For laps i
+    Counter i
+    From
+      Int 1
+    Thru
+      Int 3
+    Body
+      Assign total
+        BinOp bump (+)
+          Var total
+          Var i
+  Print
+    Var total
+  Function noisy returns doze
+    Body
+      Print
+        String "noisy ran"
+      Return
+        Int 1
+  Decl kept doze sliding
+    Int 0
+  Assign kept
+    Call noisy (0 args)
+  Assign kept
+    BinOp bump (+)
+      Call noisy (0 args)
+      Var kept
+  Decl k doze sliding
+    Int 0
+  While run_it_back
+    Cond
+      BinOp fugazi (!=)
+        Var k
+        Int 3
+    Body
+      Assign k
+        BinOp bump (+)
+          Var k
+          Int 1
+  Function area returns doze
+    Param w doze
+    Param h doze
+    Body
+      Return
+        BinOp double_back (*)
+          Var w
+          Var h
+  Print
+    Call area (2 args)
+      Int 3
+      Int 4
+  Print
+    Call area (2 args)
+      Int 5
+      Int 6

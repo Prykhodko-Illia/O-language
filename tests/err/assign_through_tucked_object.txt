@@ -1,0 +1,5 @@
+squad Point {
+    sliding doze x no_bap
+}
+Point p post Point{1} no_bap
+p.x post 2 no_bap

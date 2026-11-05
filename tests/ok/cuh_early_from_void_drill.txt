@@ -1,0 +1,9 @@
+drill countdown(doze n) {
+    spot n in_tune 0 {
+        air_out("liftoff") no_bap
+        cuh no_bap
+    }
+    air_out(n) no_bap
+    countdown(n tuck_in 1) no_bap
+}
+countdown(3) no_bap

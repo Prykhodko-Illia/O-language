@@ -1,0 +1,4 @@
+squad Node {
+    doze value no_bap
+    Node next no_bap
+}

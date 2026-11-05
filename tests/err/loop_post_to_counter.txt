@@ -1,0 +1,4 @@
+laps i from 1 thru 10 {
+    air_out(i) no_bap
+    i post i bump 1 no_bap
+}

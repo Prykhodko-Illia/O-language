@@ -1,0 +1,11 @@
+squad Point {
+    doze x no_bap
+    doze y no_bap
+
+    doze drill d2() {
+        doze r post x double_back x bump y double_back y no_bap
+        cuh r no_bap
+    }
+}
+Point p post Point{finna_hear(), finna_hear()} no_bap
+scat p.d2() no_bap

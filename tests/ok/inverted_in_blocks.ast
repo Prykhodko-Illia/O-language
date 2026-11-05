@@ -1,0 +1,15 @@
+Program
+  Function check returns line
+    Param n doze
+    Body
+      If with pivot
+        Cond
+          BinOp fugazi (!=)
+            Var n
+            Int 0
+        Then
+          Return (inverted)
+            Bool merch
+        Else
+          Return (inverted)
+            Bool woof

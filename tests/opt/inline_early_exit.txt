@@ -1,0 +1,53 @@
+lowkey Inlining bodies with early exits: what follows a spot whose arm leaves moves into
+lowkey its other arm, and every cuh becomes a post to a sliding result.
+doze drill sign(doze n) {
+    spot n in_tune 0 {
+        cuh 0 no_bap
+    }
+    spot n down_bad 0 {
+        cuh 0 tuck_in 1 no_bap
+    }
+    cuh 1 no_bap
+}
+lowkey Both arms leave.
+line drill even(doze n) {
+    spot n scraps 2 in_tune 0 {
+        cuh merch no_bap
+    } pivot {
+        cuh woof no_bap
+    }
+}
+lowkey An early cuh in a drill that returns nothing.
+drill greet(doze n) {
+    spot n in_tune 0 {
+        air_out("nobody here") no_bap
+        cuh no_bap
+    }
+    air_out(n) no_bap
+}
+lowkey Shapes left alone. A cuh inside a loop:
+doze drill first_seven(doze limit) {
+    laps i from 1 thru limit {
+        spot i scraps 7 in_tune 0 {
+            cuh i no_bap
+        }
+    }
+    cuh 0 no_bap
+}
+lowkey A call in the condition of run_it_back, which runs before every round:
+line drill more(doze n) {
+    cuh n fugazi 0 no_bap
+}
+lowkey A call that comes after finna_hear() in its expression:
+doze drill plus_one(doze n) {
+    cuh n bump 1 no_bap
+}
+air_out(sign(0 tuck_in 5)) no_bap
+air_out(even(10)) no_bap
+greet(0) no_bap
+air_out(first_seven(20)) no_bap
+sliding doze left post 2 no_bap
+run_it_back more(left) {
+    left post left tuck_in 1 no_bap
+}
+air_out(finna_hear() bump plus_one(1)) no_bap

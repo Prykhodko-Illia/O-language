@@ -1,0 +1,4 @@
+doze x post 1 no_bap
+spot x {
+    scat no_bap
+}

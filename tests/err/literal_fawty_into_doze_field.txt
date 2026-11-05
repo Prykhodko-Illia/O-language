@@ -1,0 +1,5 @@
+squad Point {
+    doze x no_bap
+}
+fawty big post 5 no_bap
+Point p post Point{big} no_bap

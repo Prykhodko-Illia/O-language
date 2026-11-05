@@ -1,0 +1,36 @@
+lowkey Inlining a drill called exactly once whose body leaves through its last cuh.
+squad Point {
+    doze x no_bap
+    doze y no_bap
+}
+lowkey The parameters become tucked declarations initialised with the arguments, the
+lowkey cuh becomes twice$result, and the call is replaced by a read of it.
+doze drill twice(doze n) {
+    doze n2 post n bump n no_bap
+    cuh n2 no_bap
+}
+lowkey A squad goes in and out as a copy: p is a declaration of its own.
+Point drill mirror(Point p) {
+    cuh Point{p.y, p.x} no_bap
+}
+lowkey A drill that returns nothing, called as a statement: just its body.
+drill banner(doze times) {
+    laps i from 1 thru times {
+        air_out("ball") no_bap
+    }
+}
+lowkey Inlined into a drill, then that drill into the top level: names stack up.
+fawty drill wide(doze n) {
+    cuh n no_bap
+}
+fawty drill grow(doze n) {
+    fawty base post wide(n) no_bap
+    cuh base double_back 1000000 no_bap
+}
+lowkey The caller's own n is not the inlined twice$n.
+doze n post 21 no_bap
+air_out(twice(n) bump 0) no_bap
+air_out(mirror(Point{1, 2})) no_bap
+banner(2) no_bap
+air_out(grow(5000)) no_bap
+air_out(n) no_bap

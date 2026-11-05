@@ -1,0 +1,55 @@
+Program
+  Squad Point
+    Field x doze tucked
+    Field y doze tucked
+  Decl n doze tucked
+    Int 21
+  Decl twice$n doze tucked
+    Var n
+  Decl twice$n2 doze tucked
+    BinOp bump (+)
+      Var twice$n
+      Var twice$n
+  Decl twice$result doze tucked
+    Var twice$n2
+  Print
+    BinOp bump (+)
+      Var twice$result
+      Int 0
+  Decl mirror$p Point tucked
+    Literal Point (2 values)
+      Int 1
+      Int 2
+  Decl mirror$result Point tucked
+    Literal Point (2 values)
+      Field access mirror$p.y
+      Field access mirror$p.x
+  Print
+    Var mirror$result
+  Decl banner$times doze tucked
+    Int 2
+  For laps banner$i
+    Counter banner$i
+    From
+      Int 1
+    Thru
+      Var banner$times
+    Body
+      Print
+        String "ball"
+  Decl grow$n doze tucked
+    Int 5000
+  Decl grow$wide$n doze tucked
+    Var grow$n
+  Decl grow$wide$result fawty tucked
+    Var grow$wide$n
+  Decl grow$base fawty tucked
+    Var grow$wide$result
+  Decl grow$result fawty tucked
+    BinOp double_back (*)
+      Var grow$base
+      Int 1000000
+  Print
+    Var grow$result
+  Print
+    Var n

@@ -1,0 +1,30 @@
+Program
+  Function run_check returns line
+    Param target doze
+    Body
+      Decl counter doze sliding
+        Var target
+      If with pivot
+        Cond
+          BinOp fugazi (!=)
+            Var counter
+            Int 0
+        Then
+          Assign counter
+            BinOp tuck_in (-)
+              Var counter
+              Int 1
+          Assert
+            BinOp in_tune (==)
+              Var counter
+              Int 0
+          Return
+            Bool merch
+        Else
+          Print
+            String "empty"
+          Return
+            Bool woof
+  CallStmt
+    Call run_check (1 args)
+      Int 1

@@ -1,0 +1,41 @@
+lowkey Unused variables in loop bodies and drills, removed with their posts.
+squad Point {
+    sliding doze x no_bap
+    doze y no_bap
+}
+sliding doze total post 0 no_bap
+laps i from 1 thru 3 {
+    sliding doze scratch post i no_bap
+    scratch post 0 no_bap
+    Point spare post Point{i, i} no_bap
+    total post total bump i no_bap
+}
+air_out(total) no_bap
+
+lowkey A post with a call in its value keeps the declaration and the post (noisy is
+lowkey called twice, so it is not inlined).
+doze drill noisy() {
+    air_out("noisy ran") no_bap
+    cuh 1 no_bap
+}
+sliding doze kept post 0 no_bap
+kept post noisy() no_bap
+kept post noisy() bump kept no_bap
+
+lowkey A sliding object nobody reads, written field by field: it goes, posts and all.
+sliding Point p post Point{1, 2} no_bap
+p.x post 5 no_bap
+
+lowkey A variable that only feeds itself survives: the right side reads it.
+sliding doze k post 0 no_bap
+run_it_back k fugazi 3 {
+    k post k bump 1 no_bap
+}
+
+doze drill area(doze w, doze h) {
+    doze unused post 100 no_bap
+    doze also post unused no_bap
+    cuh w double_back h no_bap
+}
+air_out(area(3, 4)) no_bap
+air_out(area(5, 6)) no_bap

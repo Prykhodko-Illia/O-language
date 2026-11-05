@@ -1,0 +1,4 @@
+drill hello() {
+    air_out("hello") no_bap
+}
+doze x post hello() no_bap

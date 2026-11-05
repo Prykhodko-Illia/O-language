@@ -1,0 +1,26 @@
+lowkey Stage 2 programs that use the Stage 3 words as names
+doze drill run_it_back(doze n) {
+    cuh n bump 1 no_bap
+}
+drill laps(doze n) {
+    air_out(n) no_bap
+}
+sliding doze from post 1 no_bap
+doze thru post run_it_back(from) no_bap
+sliding doze up_on post thru bump from no_bap
+up_on post up_on bump 1 no_bap
+doze down_bad post up_on no_bap
+run_it_back(down_bad) no_bap
+laps(down_bad) no_bap
+air_out(from in_tune thru) no_bap
+laps i from from thru thru {
+    air_out(i) no_bap
+}
+sliding doze k post 2 no_bap
+run_it_back (k fugazi 0) {
+    k post k tuck_in 1 no_bap
+}
+run_it_back k up_on down_bad {
+    k post k tuck_in 1 no_bap
+}
+air_out(up_on up_on down_bad) no_bap

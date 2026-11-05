@@ -1,0 +1,5 @@
+doze drill sign(doze n) {
+    spot n in_tune 0 {
+        cuh 0 no_bap
+    }
+}

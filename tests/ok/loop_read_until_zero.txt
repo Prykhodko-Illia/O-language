@@ -1,0 +1,11 @@
+lowkey read numbers until a 0, then print how many and their sum
+sliding doze count post 0 no_bap
+sliding fawty sum post 0 no_bap
+sliding doze next post finna_hear() no_bap
+run_it_back next fugazi 0 {
+    count post count bump 1 no_bap
+    sum post sum bump next no_bap
+    next post finna_hear() no_bap
+}
+air_out(count) no_bap
+air_out(sum) no_bap

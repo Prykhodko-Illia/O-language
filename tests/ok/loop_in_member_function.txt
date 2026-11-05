@@ -1,0 +1,23 @@
+lowkey a loop in a member function, writing a field of the object every round
+squad Bag {
+    sliding fawty cash no_bap
+    doze rate no_bap
+    drill grow(doze years) {
+        laps y from 1 thru years {
+            cash post cash bump cash double_back rate breakdown 100 no_bap
+        }
+    }
+    doze drill digits() {
+        sliding fawty left post cash no_bap
+        sliding doze count post 0 no_bap
+        run_it_back left fugazi 0 {
+            left post left breakdown 10 no_bap
+            count post count bump 1 no_bap
+        }
+        cuh count no_bap
+    }
+}
+sliding Bag bag post Bag{1000, 10} no_bap
+bag.grow(3) no_bap
+air_out(bag) no_bap
+air_out(bag.digits()) no_bap

@@ -1,7 +1,0 @@
-Program
-  Decl target doze tucked
-    Int 40
-  Assert
-    BinOp in_tune (==)
-      Var target
-      Int 40

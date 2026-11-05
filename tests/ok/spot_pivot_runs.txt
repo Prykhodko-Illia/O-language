@@ -1,0 +1,14 @@
+drill judge(doze n) {
+    spot n in_tune 0 {
+        air_out("zero") no_bap
+    } pivot {
+        spot (n scraps 2) in_tune 0 {
+            air_out("even") no_bap
+        } pivot {
+            air_out("odd") no_bap
+        }
+    }
+}
+judge(0) no_bap
+judge(4) no_bap
+judge(7) no_bap

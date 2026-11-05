@@ -1,0 +1,12 @@
+lowkey sliding values: nothing here is a constant, so every operation runs
+sliding doze a post 7 no_bap
+sliding doze b post 0 tuck_in 2 no_bap
+air_out(a bump b double_back 3) no_bap
+air_out((a bump b) double_back 3) no_bap
+air_out(a breakdown b) no_bap
+air_out(a scraps b) no_bap
+air_out((0 tuck_in a) breakdown 2) no_bap
+air_out((0 tuck_in a) scraps 2) no_bap
+sliding fawty big post 3000000000 no_bap
+air_out(big double_back a) no_bap
+air_out(a bump big) no_bap

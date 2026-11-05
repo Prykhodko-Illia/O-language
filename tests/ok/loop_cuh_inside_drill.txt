@@ -1,0 +1,33 @@
+lowkey a cuh inside a loop leaves the drill at once; the loop does not count as
+lowkey leaving, so the drill still ends with a cuh of its own
+doze drill first_multiple(doze of, doze limit) {
+    laps n from 1 thru limit {
+        spot n scraps of in_tune 0 {
+            cuh n no_bap
+        }
+    }
+    cuh 0 tuck_in 1 no_bap
+}
+air_out(first_multiple(7, 100)) no_bap
+air_out(first_multiple(7, 5)) no_bap
+
+drill countdown(doze from_here) {
+    sliding doze n post from_here no_bap
+    run_it_back merch {
+        spot n in_tune 0 {
+            air_out("liftoff") no_bap
+            cuh no_bap
+        }
+        air_out(n) no_bap
+        n post n tuck_in 1 no_bap
+    }
+}
+countdown(2) no_bap
+
+lowkey scat inside a loop ends the program
+laps i from 1 thru 10 {
+    spot i in_tune 3 {
+        scat i no_bap
+    }
+    air_out(i) no_bap
+}
