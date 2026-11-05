@@ -58,10 +58,14 @@ The course project for *Languages and Compilers Design*. **Stage 1** was the fro
 (a state machine over bytes, no regular expressions, no `split()`), a recursive-descent parser and an AST.
 **Stage 2** makes it run: a semantic pass over that tree resolves every name to its declaration and gives every
 expression a type, and then a code generator walks the checked tree and builds LLVM IR through the `llvmlite`
-builder. The only IR text the compiler writes is the module the builder printed.
+builder. The only IR text the compiler writes is the module the builder printed. **Stage 3** gives the language
+a feature of its own -- **loops**, `run_it_back` and `laps` -- an optimizer behind `--optimize` that makes the
+checked tree smaller without changing what a program prints, and a real program, a free-throw session tracker,
+compiled to a native binary.
 
 ```
-source bytes ──lexer──► tokens ──parser──► AST ──semantic pass──► checked AST ──codegen──► output.ll ──lli / llc + clang──► 🏀
+source bytes ──lexer──► tokens ──parser──► AST ──semantic pass──► checked AST ──[--optimize]──► smaller checked AST
+             ──codegen──► output.ll ──lli / llc + clang──► 🏀
 ```
 
 The complete grammar is in [`grammar.ebnf`](grammar.ebnf): everything the parser accepts is there, and nothing else.
@@ -113,6 +117,16 @@ python3 compiler.py --ast-checked program.txt   # run the semantic pass, then pr
 python3 compiler.py --tokens program.txt        # print the token stream (debugging)
 ```
 
+`--optimize`, anywhere on the command line, runs the optimizer (✂️ below) on the checked tree before code
+generation; with `--ast` it prints the tree the optimizer left, in the `--ast` format, and with `--ast-checked`
+the same tree with what the semantic pass found:
+
+```bash
+python3 compiler.py --optimize program.txt output.ll
+python3 compiler.py program.txt output.ll --optimize      # the same
+python3 compiler.py --optimize --ast program.txt          # the tree after the optimizer
+```
+
 `--ast-checked` adds to every expression its type, its value when it is a constant, and the declaration a name
 means: `Var counter  : doze  (declared at 2:18)`.
 
@@ -140,6 +154,14 @@ early, it points right after the last token: the place where something should ha
   and no output file, and its error line must equal `tests/err/NAME.expected`.
 - When `NAME.ast` (or `NAME.ast-checked`) exists next to a program, the `--ast` (or `--ast-checked`) dump must
   equal it too: the Stage 1 tests keep their tree dumps there.
+- Every program of `tests/ok` and `tests/err` is compiled a second time **with `--optimize`**, and must print the
+  same output, or fail with the same error, as without it.
+- `tests/opt/NAME.txt` are the tests of the optimizer: each runs with and without `--optimize`, both outputs must
+  equal `NAME.expected`, and the tree after `--optimize --ast` must equal `NAME.ast`.
+- `programs/NAME.txt` is a whole program with recorded sessions: `NAME.in`, `NAME.2.in`, … is what the user
+  types, `NAME.expected`, `NAME.2.expected`, … the exact output, prompts included. The script builds it into a
+  **native binary** with `llc` and `clang`, with and without `--optimize`, and runs every session on both (where
+  `llc` or `clang` is missing it says so and uses `lli`).
 
 Each test prints `PASS` or `FAIL` (with the difference), then a summary; the script exits non-zero if any test
 failed. Every test is named after what it covers: `if_else_nested.txt`, `unclosed_block.txt`.
@@ -184,6 +206,8 @@ tests in the Multipass VM `noble-compilers` instead, with the repository at `~/c
 | `lowkey` | comment to the end of the line | `pab_on` | inverted line (see below) |
 | `squad Name { … }` | a structure: a type with fields | `a.b.c` | a field, through a chain |
 | `obj.f( … )` | a member function call | `finna_hear()` | read one integer from the input |
+| `run_it_back cond { … }` | while | `up_on` | `>` |
+| `laps i from a thru b { … }` | for `i` from `a` to `b`, `b` included | `down_bad` | `<` |
 
 All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
 start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
@@ -248,8 +272,10 @@ counter post counter bump 1 no_bap
 ### 🧮 Expressions
 
 `double_back`, `breakdown` and `scraps` bind tighter than `bump` and `tuck_in`; operators of equal precedence group from
-left to right; `( )` groups. A comparison (`in_tune`, `fugazi`) binds weakest and gives a `line`; only one per
-expression, unless you group with `( )`.
+left to right; `( )` groups. A comparison (`in_tune`, `fugazi`, `up_on`, `down_bad`) binds weakest and gives a
+`line`; only one per expression, unless you group with `( )`. `up_on` (`>`) and `down_bad` (`<`) compare two
+integers of any widths -- *up on* the other one, or *down bad* against it; `in_tune` and `fugazi` also compare two
+lines.
 
 ```
 doze a post 2 bump 3 double_back 4 no_bap          lowkey 2 + (3 * 4) = 14
@@ -257,6 +283,7 @@ doze b post 10 tuck_in 3 tuck_in 2 no_bap          lowkey (10 - 3) - 2 = 5
 doze c post (2 bump 3) double_back 4 no_bap        lowkey 20
 line d post a fugazi b no_bap                      lowkey a != b
 line e post (a in_tune 14) in_tune merch no_bap
+line f post a up_on b double_back 2 no_bap         lowkey a > b * 2
 ```
 
 ### 👀 if / else
@@ -387,6 +414,111 @@ it: `Decl counter doze sliding (inverted)`.
 pab_on 5 post x doze no_bap
 compilation error: line 1:22: an inverted line ends with the line: unexpected keyword 'no_bap'
 ```
+
+### 🔁 Stage 3 feature: loops — `run_it_back` and `laps`
+
+On the court you **run it back** until you get it right, and you run **laps** from one line to the other. Before
+Stage 3 the only way to repeat was a drill calling itself; now there are two loops.
+
+`run_it_back condition { statements }` is a **while**: the condition, a `line`, is checked before every round,
+and the body runs while it is `merch` -- maybe never. `laps i from a thru b { statements }` is a **for over an
+integer range**: `a` and `b` are evaluated once, before the first round, `a` first; then the body runs with the
+counter `i` at `a`, `a bump 1`, … up to `b`, **`b` included** -- no round at all when `a` is greater than `b`.
+
+The rules (`src/semantic.py` checks them, `tests/ok/loop_*` and `tests/err/loop_*` test them):
+
+- the condition of `run_it_back` is a `line`; `from` and `thru` take integers, and a constant bound must fit the
+  counter's type;
+- the counter has the wider type of the two bounds: `doze`, or `fawty` when one of them is a `fawty`. It is
+  **tucked** -- the loop moves it, a post to it is an error -- and it lives only in the body: after the `}` it is
+  gone, and the body cannot declare it again;
+- a loop's body is a block: a name declared in it is fresh in every round and gone after the `}`; a body may
+  shadow an outer name, and holds at least one statement;
+- loops nest -- a `laps` in a `run_it_back` in a `laps` -- and stand anywhere a statement does: the top level, a
+  `spot`, a drill, a member function;
+- `cuh` inside a loop leaves the drill at once, `scat` ends the program. A loop never counts as *leaving* a drill
+  with a result type, even with a `cuh` inside -- it may run no round -- so such a drill still ends with a `cuh`;
+- there is no `break`: a loop ends when its condition is `woof` or its counter reaches `b` (or with a `cuh`).
+
+`laps i from 9223372036854775805 thru 9223372036854775807` ends after three rounds: the counter is compared with `b`
+before it is moved, so it never steps past the maximum (`tests/ok/loop_for_bounds`).
+
+**Example 1** -- a countdown and a table, a loop inside a loop with a declaration in the body
+([`tests/ok/loop_for_nested.txt`](tests/ok/loop_for_nested.txt) has more):
+
+```
+sliding doze shot_clock post 3 no_bap
+run_it_back shot_clock fugazi 0 {
+    air_out(shot_clock) no_bap                      lowkey 3, 2, 1
+    shot_clock post shot_clock tuck_in 1 no_bap
+}
+laps row from 1 thru 4 {
+    sliding doze sum post 0 no_bap                  lowkey a fresh sum every row
+    laps col from 1 thru row {
+        sum post sum bump row double_back col no_bap
+    }
+    air_out(sum) no_bap                             lowkey 1, 6, 18, 40
+}
+```
+
+**Example 2** -- read until a 0, in a drill that leaves from inside a loop
+([`tests/ok/loop_read_until_zero.txt`](tests/ok/loop_read_until_zero.txt),
+[`tests/ok/loop_cuh_inside_drill.txt`](tests/ok/loop_cuh_inside_drill.txt)):
+
+```
+doze drill first_multiple(doze of, doze limit) {
+    laps n from 1 thru limit {
+        spot n scraps of in_tune 0 {
+            cuh n no_bap                            lowkey leaves the drill at once
+        }
+    }
+    cuh 0 tuck_in 1 no_bap                          lowkey none in range
+}
+sliding fawty sum post 0 no_bap
+sliding doze next post finna_hear() no_bap
+run_it_back next fugazi 0 {
+    sum post sum bump next no_bap
+    next post finna_hear() no_bap
+}
+air_out(sum) no_bap                                 lowkey input 5 -2 10 0  →  13
+air_out(first_multiple(7, 100)) no_bap              lowkey 7
+```
+
+In the tree a loop is a `While run_it_back` with a `Cond` and a `Body`, or a `For laps i` with its `Counter`,
+`From`, `Thru` and `Body`; `--ast-checked` gives the counter its type: `Counter i  : doze`.
+
+**The IR.** `python3 compiler.py` on `laps i from 1 thru 3 { total post total bump i no_bap }` writes this
+`main` (the overflow check of `bump`, its `trap` and `ok` blocks, cut short with `…`):
+
+```llvm
+entry:
+  %"total" = alloca i32
+  %"i" = alloca i32
+  store i32 0, i32* %"total"
+  store i32 1, i32* %"i"
+  %"empty" = icmp sgt i32 1, 3
+  br i1 %"empty", label %"laps.end", label %"laps.body"
+laps.body:
+  %"total.1" = load i32, i32* %"total"
+  %"i.1" = load i32, i32* %"i"
+  %"bump" = call {i32, i1} @"llvm.sadd.with.overflow.i32"(i32 %"total.1", i32 %"i.1")   …
+laps.next:
+  %"i.2" = load i32, i32* %"i"
+  %"last" = icmp eq i32 %"i.2", 3
+  br i1 %"last", label %"laps.end", label %"laps.step"
+laps.step:
+  %"step" = add i32 %"i.2", 1
+  store i32 %"step", i32* %"i"
+  br label %"laps.body"
+```
+
+The entry block evaluates both bounds once, stores the first one into the counter's own `alloca`, and skips the
+whole loop when `from` is greater than `thru` (`icmp sgt`; here both are constants). `laps.body` is the body
+itself, and `laps.next` -- where the body's last block branches -- compares the counter with `thru` **before**
+moving it, so the loop leaves on the last value and the plain `add` in `laps.step` can never overflow.
+`br label %"laps.body"` at the end of `laps.step` is the **back edge**: the only branch to an earlier block,
+which is what makes this a loop. A `run_it_back` has the same shape with three blocks -- `while.cond` evaluates the
+condition and branches into `while.body` or out to `while.end`, and the body ends with `br label %"while.cond"`.
 
 ### 🤞 The invariant: `on_the_guys`
 
@@ -589,6 +721,9 @@ compiler writes. What each construct becomes:
 | a constant (as the semantic pass computed it) | one `ir.Constant` of the type it lands in |
 | `bump`, `tuck_in`, `double_back` | `llvm.sadd/ssub/smul.with.overflow` and a branch to a block that reports and calls `exit(1)` |
 | `spot` / `pivot` | basic blocks `then`, `else`, `merge` and a `cbranch` on the `i1` condition |
+| `run_it_back` | blocks `while.cond`, `while.body`, `while.end`; the body ends with a `br` back to `while.cond` |
+| `laps i from a thru b` | an `alloca` for `i`, `icmp sgt` to skip an empty range, blocks `laps.body`, `laps.next`, `laps.step`, `laps.end`; `laps.step` adds 1 and branches back to `laps.body` |
+| `in_tune`, `fugazi`, `up_on`, `down_bad` | `icmp eq`, `ne`, `sgt`, `slt` on two operands of one width |
 | a drill `f` | `@"drill.f"`: a name with a `.` cannot clash with `main` or `printf`. Every drill is declared before any body is built, so a call may go to a drill below |
 | `squad Point` | an identified struct type `%"squad.Point" = type {i32, i32}`; an object is an `alloca` of it |
 | `p.x`, `c.center.x` | one `gep` with indices `0`, then each field's index from the semantic pass's squad table |
@@ -621,6 +756,7 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | A number has the narrowest type it fits: `doze`, else `fawty`. | `overflow_limits` | `constant_overflows_fawty` |
 | `bump`, `tuck_in`, `double_back`, `breakdown`, `scraps` take two integers and give the wider one; a `line` operand is an error. | `function_with_return` | `line_in_arithmetic` |
 | `in_tune` and `fugazi` compare two integers (any widths) or two lines, and give a `line`. | `comparisons` | `compare_line_with_doze` |
+| `up_on` and `down_bad` compare two integers (any widths), and give a `line`; one comparison per expression. | `compare_up_on_down_bad` | `compare_up_on_lines`, `compare_down_bad_twice` |
 | A `doze` goes where a `fawty` is expected -- the only conversion there is: never `fawty` into `doze`, never across `line`. | `widen_doze_into_fawty` | `narrow_fawty_into_doze`, `arg_fawty_into_doze` |
 | The condition of `spot` and of `on_the_guys` is a `line`. | `if_pivot` | `condition_not_line`, `assert_not_line` |
 | `air_out` takes a string, an integer, a line or an object; `scat` an integer, a line or nothing. | `print_string_and_value` | `string_in_expression`, `scat_a_squad` |
@@ -633,6 +769,16 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | A drill without a result type has no value: its call is only a statement of its own. | `function_no_return_type` | `void_call_as_value` |
 | `cuh` is only inside a drill; it carries a value of the drill's result type, or nothing when the drill returns nothing. | `function_with_return` | `cuh_at_top_level`, `cuh_wrong_type`, `cuh_value_in_void_drill`, `cuh_without_value` |
 | A drill with a result type leaves on every path: its body ends with `cuh` or `scat`, or with a `spot`/`pivot` whose two arms both leave. | `inverted_in_blocks` | `cuh_missing_on_a_path` |
+
+**Loops**
+
+| Rule | Follows | Breaks |
+|---|---|---|
+| The condition of `run_it_back` is a `line`, checked before every round. | `loop_while_countdown` | `loop_while_cond_not_line` |
+| `laps i from a thru b`: `a` and `b` are integers, evaluated once, `a` first; the body runs for `a` … `b`, `b` included, none when `a > b`. | `loop_for_bounds` | `loop_bound_is_line`, `loop_missing_thru` |
+| The counter is tucked and lives in the body only; the body cannot declare it again. | `loop_for_nested` | `loop_post_to_counter`, `loop_counter_outside_body`, `loop_counter_redeclared_in_body` |
+| A loop's body is a block: a name in it is fresh each round and gone after it; it holds at least one statement. Loops nest. | `loop_body_declares`, `loop_for_nested`, `loop_in_member_function` | `loop_body_name_gone_after_round`, `loop_empty_body` |
+| `cuh` and `scat` may stand in a loop; a loop never counts as leaving a drill. | `loop_cuh_inside_drill`, `loop_read_until_zero` | `loop_drill_ends_with_loop` |
 
 **Squads**
 
@@ -690,17 +836,133 @@ Every rule below is a sentence `src/semantic.py` implements, and each one has a 
 | Caught by | What |
 |---|---|
 | lexer | an unknown byte (`+`, `=`, `/`, `:`, an emoji outside a string…); a letter inside a number (`10x`); a number above the fawty maximum; a string not closed on its line |
-| parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block; a constant initialiser that overflows its type, or divides by zero; an inverted line that does not end with its line or does not end in `post name`, `cuh` or `scat` |
+| parser | a missing `no_bap`, type, name, `post` initialiser, `{` or `}`; a function without `drill` (`doze f() { … }`); `sliding` after the type; an empty block; `pivot` without `spot`; two operators in a row or an operator with no right side; two comparisons without `( )`; an unclosed `(`; a keyword used as a name; a string outside `air_out`; a `drill` inside a block; a constant initialiser that overflows its type, or divides by zero; an inverted line that does not end with its line or does not end in `post name`, `cuh` or `scat`; a `laps` without its counter, `from` or `thru`; an empty loop body |
 | parser (squads) | a squad inside a block or without fields; a field with a `post` value; a field after a member function; a `sliding` member function; a squad's name not followed by `{`; a type that is not a squad declared above; `finna_hear` with arguments |
-| semantic pass | every rule of the tables above: a name not declared or declared twice, a post to a tucked variable or through a tucked chain, a type that does not fit, a wrong number or type of arguments, a misplaced or missing `cuh`, an unknown field or member function, a wrong literal, a squad that contains itself, a mutating member function called on a tucked object, a constant that overflows or divides by zero |
+| semantic pass | every rule of the tables above: a name not declared or declared twice, a post to a tucked variable or through a tucked chain, a type that does not fit, a wrong number or type of arguments, a misplaced or missing `cuh`, an unknown field or member function, a wrong literal, a squad that contains itself, a mutating member function called on a tucked object, a constant that overflows or divides by zero, a loop condition that is not a `line`, a bound that is not an integer, a post to a loop's counter |
 | run time | see 💥 above: an overflow, a division by 0, a broken `on_the_guys`, no number for `finna_hear` -- one line, exit code 1 |
+
+## ✂️ The optimizer: `--optimize`
+
+`--optimize` runs [`src/optimizer.py`](src/optimizer.py) on the tree the semantic pass has accepted and
+annotated, before the code generator -- so it never sees an invalid program, and the generator never knows it
+ran. Every name in that tree already points at its declaration (`decl`) and every call at its function (`fn`), so
+the optimizer counts, removes and renames **by node, never by spelling**: two `x` in two blocks are two
+declarations, and that is how scopes and shadowing are respected without a symbol table. Three transformations
+run in rounds -- unused functions, unused variables, one inlining -- until a round changes nothing, because each one
+feeds the others.
+
+**Unused variables.** A read is a name in a value, a condition, an argument, a print, the start of a field chain,
+the object of a member call; a `post` to the variable is not a read. A declaration nobody reads is removed with
+every post to it -- if nothing it takes away can be seen. A value is *quiet* when it can neither be observed nor
+fail: a number, `merch` / `woof`, a variable or a field, a constant the semantic pass folded (`2 double_back 3` is
+the number 6), a comparison or a literal of quiet values. Everything else stays: a call (it may print, read or
+never return), `finna_hear()` (it eats a line of input), and arithmetic on values (`bump` may overflow,
+`breakdown` may divide by zero, and either one prints an error and ends the program). Parameters, loop counters
+and fields stay too. Removing `z` (which read `y`) leaves `y` unread, so the next round counts again: `x → y → z`
+takes three rounds ([`tests/opt/var_chain_and_shadow.txt`](tests/opt/var_chain_and_shadow.txt),
+[`tests/opt/var_in_loops_and_posts.txt`](tests/opt/var_in_loops_and_posts.txt)). A variable that only feeds
+itself (`k post k bump 1`) survives: its own right side reads it.
+
+**Unused functions.** Every call is counted wherever it stands -- the top level, a drill, a member function, a
+loop -- except a call inside the function's own body, so a drill that only calls itself is unused too. A drill or a
+member function with no call left is removed with its whole body, and the calls in that body go with it: `top`
+was the only caller of `middle`, `middle` of `leaf`, so they go in rounds 1, 2 and 3. Two drills that only call
+each other keep each other -- counting cannot see a cycle
+([`tests/opt/fn_chain_removed.txt`](tests/opt/fn_chain_removed.txt),
+[`tests/opt/fn_members_and_recursion.txt`](tests/opt/fn_members_and_recursion.txt)).
+
+**Inlining.** A drill called exactly once that is not recursive -- it cannot reach itself through the calls in its
+body -- is put where it was called: each parameter becomes a tucked declaration initialised with its argument, the
+body follows, its exit becomes the value where the call stood, and the drill, now with no call, is removed as
+unused in the next round. Every name the body declares is renamed `f$name` -- `$` cannot be written in a
+program, so nothing can collide with the caller's names, nor with another inlined body's -- and the result is
+`f$result`. Member functions are not inlined: their bodies read the object they are called on.
+
+| Inlined | Left alone |
+|---|---|
+| a body that leaves through its last `cuh`: `cuh value` becomes `T f$result post value` | a `cuh` inside a `run_it_back` or a `laps`: leaving a loop in the middle would need a `break` |
+| a drill that returns nothing, called as a statement: just its body | a `spot` where neither arm leaves but one holds a `cuh`: the rest would be copied into both arms |
+| early exits: a `spot` whose arm leaves -- the statements after it move into its other arm, so every `cuh` ends its path; then a sliding `f$result` starts at a default (0, `woof`, a literal of those) and every `cuh` posts to it. Arms nest, and both arms may leave | a call in the condition of `run_it_back`: the condition runs every round, the statements before the loop once |
+| a call in a value, an argument, a print, a `spot` condition, the bounds of `laps` (evaluated once, before the loop) | a call after a part of its statement that is not quiet: `finna_hear() bump f(x)`, `y breakdown z bump f(x)` -- moving the call first would change the order |
+| a `scat` in any shape: it ends the program from anywhere | a recursive drill, a drill called twice or more, a member function |
+
+`spot n in_tune 0 { cuh 0 } spot n down_bad 0 { cuh 0 tuck_in 1 } cuh 1` becomes
+`spot n in_tune 0 { r post 0 } pivot { spot n down_bad 0 { r post 0 tuck_in 1 } pivot { r post 1 } }` with
+`r = sign$result` ([`tests/opt/inline_tail_exit.txt`](tests/opt/inline_tail_exit.txt),
+[`tests/opt/inline_early_exit.txt`](tests/opt/inline_early_exit.txt)).
+
+**The proof is mechanical.** `tests/opt` holds six programs, two per transformation, each with its expected
+output and the tree after `--optimize --ast`; the output is the same with and without the flag, and every
+program of `tests/ok` and `tests/err` passes with the flag too (`./run_tests.sh` runs them all both ways).
+
+**Inlining in the IR.** `doze drill twice(doze n) { cuh n double_back 2 no_bap }`, called once as
+`air_out(twice(x)) no_bap`. Without `--optimize`, `main` calls the drill, which has its own function:
+
+```llvm
+define i32 @"drill.twice"(i32 %"n")
+  ...
+  %"double_back" = call {i32, i1} @"llvm.smul.with.overflow.i32"(i32 %"n.2", i32 2)
+  ...
+  ret i32 %"double_back.1"
+
+  ; in main:
+  %"x.1" = load i32, i32* %"x"
+  %".11" = call i32 @"drill.twice"(i32 %"x.1")
+  %".13" = call i32 (i8*, ...) @"printf"(i8* %".12", i32 %".11")
+```
+
+With `--optimize` there is no `@"drill.twice"` in the module at all; the parameter and the result are slots of
+`main`, and the multiplication -- with its overflow check -- sits where the call stood:
+
+```llvm
+  %"twice$n" = alloca i32
+  %"twice$result" = alloca i32
+  ...
+  %"x.1" = load i32, i32* %"x"
+  store i32 %"x.1", i32* %"twice$n"
+  %"twice$n.1" = load i32, i32* %"twice$n"
+  %"double_back" = call {i32, i1} @"llvm.smul.with.overflow.i32"(i32 %"twice$n.1", i32 2)
+  ...
+  store i32 %"double_back.1", i32* %"twice$result"
+  %"twice$result.1" = load i32, i32* %"twice$result"
+  %".19" = call i32 (i8*, ...) @"printf"(i8* %".18", i32 %"twice$result.1")
+```
+
+---
+
+## 🏀 The real program: free throws at the O
+
+[`programs/freethrows.txt`](programs/freethrows.txt) is a free-throw session tracker for the court. It asks how
+many hoopers step to the line (1 to 5, and asks again until the answer is in range), then lets each one call
+their shots -- `1` for a make, `0` for a miss, `9` when they are done -- and prints their line: the `Hooper` object
+with makes, tries, current and best streak, the shooting percentage, and one 🏀 per make. At the end it names
+the MVP, the best percentage. The loops carry it: a `laps` over the hoopers, a `run_it_back` over each one's
+shots, a `run_it_back` that repeats the question, and a `laps` inside the member function `report` for the balls.
+The `Hooper` squad has member functions `shoot` (a make grows the streak, a miss ends it), `percent` and `report`;
+`in_range` and `banner` are drills, `finna_hear()` reads every answer and `air_out` prints every line.
+
+Build it into a native binary -- `llc` and `clang`, no `lli` -- and run the two recorded sessions:
+
+```bash
+python3 compiler.py programs/freethrows.txt freethrows.ll
+llc -filetype=obj -relocation-model=pic freethrows.ll -o freethrows.o
+clang -fPIE freethrows.o -o freethrows
+./freethrows < programs/freethrows.in      # two hoopers: 3 of 4 and 1 of 4, hooper 1 is the MVP
+./freethrows < programs/freethrows.2.in    # 0 and 7 rejected, then three hoopers and a 5 that is no shot
+./freethrows                               # your own session
+```
+
+Each session's exact output, prompts included, is `programs/freethrows.expected` and
+`programs/freethrows.2.expected`; `./run_tests.sh` builds the binary both with and without `--optimize` and checks
+both sessions on each (with `--optimize`, `banner` is inlined, being called once).
 
 ---
 
 ## 🎨 Extra: VS Code highlighting
 
 [`editors/vscode/`](editors/vscode) is a small VS Code extension that colours O-language: the types, `sliding`,
-the control words (`spot`, `pivot`, `cuh`, `scat`), the operators (`bump`, `post`, `in_tune`, …), `merch` / `woof`,
+the control words (`spot`, `pivot`, `run_it_back`, `laps`, `from`, `thru`, `cuh`, `scat`), the operators (`bump`,
+`post`, `in_tune`, `up_on`, …), `merch` / `woof`,
 `air_out` and `finna_hear`, `no_bap`, `pab_on`, strings, numbers and `lowkey` comments. On top of the words it
 knows the shapes: the name after `squad` and after `drill`, a squad used as a type (`Point p post …`,
 `sliding Point center no_bap`, `Point drill origin()`), a literal `Point{3, 4}`, a field after a `.`, and a member
@@ -728,16 +990,19 @@ over every program in `tests/`: every squad is coloured as a type, and no variab
 ## 🗂️ What's in the repo
 
 ```
-compiler.py       entry point: compile to .ll, --ast, --ast-checked, --tokens, error reporting
+compiler.py       entry point: compile to .ll, --ast, --ast-checked, --tokens, --optimize, error reporting
 grammar.ebnf      the grammar in EBNF
 src/lexer.py      Token and lex(): byte-by-byte state machine (START, WORD, NUMBER, STRING, COMMENT)
 src/parser.py     Parser: recursive descent, peek()/eat(), one method per grammar rule
 src/ast_nodes.py  ASTNode, ProgramNode, FunctionNode, StmtNode + statements, ExprNode + expressions, dump()
 src/semantic.py   SemanticChecker: the symbol table, names, types, drills and constants; annotates the tree
+src/optimizer.py  --optimize: unused variables, unused functions and inlining, on the checked tree
 src/codegen.py    CodeGen: walks the checked tree and builds the module with the llvmlite builder
 src/errors.py     CompileError with line and column
 tests/ok/         valid programs, their expected output (.expected), input (.in) and tree dumps (.ast)
 tests/err/        invalid programs and their expected error line
+tests/opt/        tests of the optimizer: programs, their output (.expected) and the tree after --optimize --ast
+programs/         freethrows.txt, the real program, and its recorded sessions (.in / .expected)
 run_tests.sh      compiles and runs every test and reports PASS / FAIL
 full_compiler.sh  source -> output.ll -> output.o -> program, and runs it
 githooks/         pre-push: the tests before every push (git config core.hooksPath githooks)
@@ -745,6 +1010,7 @@ editors/vscode/   the VS Code extension: syntax highlighting and comment / brack
 .github/workflows tests.yml: the tests and a native build on every push and pull request
 ai_usage.txt      how AI was used for Stage 1
 ai_usage_2.txt    how AI was used for Stage 2
+ai_usage_3.txt    how AI was used for Stage 3
 ```
 
 ---
