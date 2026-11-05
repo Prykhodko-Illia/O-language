@@ -1,0 +1,118 @@
+Program
+  Function first_seven returns doze
+    Param limit doze
+    Body
+      For laps i
+        Counter i
+        From
+          Int 1
+        Thru
+          Var limit
+        Body
+          If
+            Cond
+              BinOp in_tune (==)
+                BinOp scraps (%)
+                  Var i
+                  Int 7
+                Int 0
+            Then
+              Return
+                Var i
+      Return
+        Int 0
+  Function more returns line
+    Param n doze
+    Body
+      Return
+        BinOp fugazi (!=)
+          Var n
+          Int 0
+  Function plus_one returns doze
+    Param n doze
+    Body
+      Return
+        BinOp bump (+)
+          Var n
+          Int 1
+  Decl sign$n doze tucked
+    BinOp tuck_in (-)
+      Int 0
+      Int 5
+  Decl sign$result doze sliding
+    Int 0
+  If with pivot
+    Cond
+      BinOp in_tune (==)
+        Var sign$n
+        Int 0
+    Then
+      Assign sign$result
+        Int 0
+    Else
+      If with pivot
+        Cond
+          BinOp down_bad (<)
+            Var sign$n
+            Int 0
+        Then
+          Assign sign$result
+            BinOp tuck_in (-)
+              Int 0
+              Int 1
+        Else
+          Assign sign$result
+            Int 1
+  Print
+    Var sign$result
+  Decl even$n doze tucked
+    Int 10
+  Decl even$result line sliding
+    Bool woof
+  If with pivot
+    Cond
+      BinOp in_tune (==)
+        BinOp scraps (%)
+          Var even$n
+          Int 2
+        Int 0
+    Then
+      Assign even$result
+        Bool merch
+    Else
+      Assign even$result
+        Bool woof
+  Print
+    Var even$result
+  Decl greet$n doze tucked
+    Int 0
+  If with pivot
+    Cond
+      BinOp in_tune (==)
+        Var greet$n
+        Int 0
+    Then
+      Print
+        String "nobody here"
+    Else
+      Print
+        Var greet$n
+  Print
+    Call first_seven (1 args)
+      Int 20
+  Decl left doze sliding
+    Int 2
+  While run_it_back
+    Cond
+      Call more (1 args)
+        Var left
+    Body
+      Assign left
+        BinOp tuck_in (-)
+          Var left
+          Int 1
+  Print
+    BinOp bump (+)
+      Read finna_hear
+      Call plus_one (1 args)
+        Int 1

@@ -1,0 +1,28 @@
+lowkey Unused variables, round after round: z reads y, y reads x, and nobody reads z.
+lowkey Round 1 removes z, round 2 y, round 3 x.
+doze x post 4 no_bap
+doze y post x no_bap
+doze z post y no_bap
+
+lowkey Shadowing: the inner score is read, the outer one is not -- two declarations,
+lowkey counted apart, so only the outer one goes.
+doze score post 10 no_bap
+spot merch {
+    doze score post 20 no_bap
+    air_out(score) no_bap
+}
+
+lowkey Values that are kept although nobody reads them: a call may print, finna_hear()
+lowkey eats a line of input, arithmetic on a value may overflow and end the program.
+lowkey (loud is called twice, so it is not inlined and its calls stay calls.)
+doze drill loud(doze n) {
+    air_out(n) no_bap
+    cuh n no_bap
+}
+doze heard post finna_hear() no_bap
+doze echoed post loud(7) no_bap
+doze echoed_again post loud(8) bump 0 no_bap
+doze maybe post heard bump 1 no_bap
+lowkey A folded constant cannot fail: 2 double_back 3 is the number 6, so it goes.
+doze folded post 2 double_back 3 no_bap
+air_out("done") no_bap

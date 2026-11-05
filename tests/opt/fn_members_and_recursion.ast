@@ -1,0 +1,52 @@
+Program
+  Squad Bag
+    Field cash doze sliding
+    Member add of Bag returns nothing
+      Param n doze
+      Body
+        Assign cash
+          BinOp bump (+)
+            Var cash
+            Call half (1 args)
+              Var n
+    Member half of Bag returns doze
+      Param n doze
+      Body
+        Return
+          BinOp breakdown (/)
+            Var n
+            Int 2
+  Function sum_to returns doze
+    Param n doze
+    Body
+      If
+        Cond
+          BinOp in_tune (==)
+            Var n
+            Int 0
+        Then
+          Return
+            Int 0
+      Return
+        BinOp bump (+)
+          Var n
+          Call sum_to (1 args)
+            BinOp tuck_in (-)
+              Var n
+              Int 1
+  Decl bag Bag sliding
+    Literal Bag (1 values)
+      Int 0
+  CallStmt
+    Chain bag ends in member call add (1 args)
+      Var bag
+      Int 10
+  CallStmt
+    Chain bag ends in member call add (1 args)
+      Var bag
+      Int 5
+  Print
+    Var bag
+  Print
+    Call sum_to (1 args)
+      Int 4

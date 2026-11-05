@@ -1,0 +1,32 @@
+Program
+  If
+    Cond
+      Bool merch
+    Then
+      Decl score doze tucked
+        Int 20
+      Print
+        Var score
+  Function loud returns doze
+    Param n doze
+    Body
+      Print
+        Var n
+      Return
+        Var n
+  Decl heard doze tucked
+    Read finna_hear
+  Decl echoed doze tucked
+    Call loud (1 args)
+      Int 7
+  Decl echoed_again doze tucked
+    BinOp bump (+)
+      Call loud (1 args)
+        Int 8
+      Int 0
+  Decl maybe doze tucked
+    BinOp bump (+)
+      Var heard
+      Int 1
+  Print
+    String "done"

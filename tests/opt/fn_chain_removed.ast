@@ -1,0 +1,36 @@
+Program
+  Function ping returns doze
+    Param n doze
+    Body
+      If
+        Cond
+          BinOp in_tune (==)
+            Var n
+            Int 0
+        Then
+          Return
+            Int 0
+      Return
+        Call pong (1 args)
+          BinOp tuck_in (-)
+            Var n
+            Int 1
+  Function pong returns doze
+    Param n doze
+    Body
+      Return
+        Call ping (1 args)
+          Var n
+  Function used returns doze
+    Param n doze
+    Body
+      Return
+        BinOp double_back (*)
+          Var n
+          Int 10
+  Print
+    Call used (1 args)
+      Int 1
+  Print
+    Call used (1 args)
+      Int 2

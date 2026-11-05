@@ -1,0 +1,37 @@
+lowkey Member functions are counted too: nobody calls Bag.shout, so it goes; Bag.add is
+lowkey called and stays, and so does Bag.half, called only from add.
+squad Bag {
+    sliding doze cash no_bap
+    drill add(doze n) {
+        cash post cash bump half(n) no_bap
+    }
+    doze drill half(doze n) {
+        cuh n breakdown 2 no_bap
+    }
+    drill shout() {
+        air_out("never") no_bap
+    }
+}
+
+lowkey A recursive drill called once is never inlined, and stays.
+doze drill sum_to(doze n) {
+    spot n in_tune 0 {
+        cuh 0 no_bap
+    }
+    cuh n bump sum_to(n tuck_in 1) no_bap
+}
+
+lowkey A drill whose only call is inside a removed drill goes in the next round.
+drill report(doze n) {
+    air_out(n) no_bap
+}
+drill wrapper() {
+    report(1) no_bap
+    report(2) no_bap
+}
+
+sliding Bag bag post Bag{0} no_bap
+bag.add(10) no_bap
+bag.add(5) no_bap
+air_out(bag) no_bap
+air_out(sum_to(4)) no_bap
