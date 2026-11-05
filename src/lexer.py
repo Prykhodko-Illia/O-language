@@ -43,14 +43,17 @@ KEYWORDS = {
     "sliding": "mutable", "post": "assign",
     "bump": "operator", "tuck_in": "operator", "double_back": "operator",
     "breakdown": "operator", "scraps": "operator",
-    "in_tune": "compare", "fugazi": "compare", "up_on": "compare", "down_bad": "compare",
+    "in_tune": "compare", "fugazi": "compare",
     "spot": "if", "pivot": "else",
     "drill": "function", "cuh": "return", "scat": "exit",
     "on_the_guys": "assert", "air_out": "print",
     "no_bap": "end", "pab_on": "flip",
     "squad": "squad", "finna_hear": "read",
-    "run_it_back": "while", "laps": "for", "from": "from", "thru": "thru",
 }
+
+# The words Stage 3 added -- run_it_back, laps, from, thru, up_on, down_bad -- are not in the
+# table: they stay identifiers, so a Stage 2 program that uses one as a name is still valid.
+# The parser reads them as words only where its rules expect one (src/parser.py).
 
 COMMENT_WORD = b"lowkey"
 

@@ -14,10 +14,7 @@
  *   "bump" "tuck_in" "double_back"                 + - *
  *   "breakdown" "scraps"                           / %
  *   "in_tune" "fugazi"                             == !=
- *   "up_on" "down_bad"                             > <
  *   "spot" "pivot"                                 if, else
- *   "run_it_back"                                  while
- *   "laps" "from" "thru"                           for over an integer range, end included
  *   "drill" "cuh" "scat"                           function, return, exit
  *                                                  (C++ style: the return type goes before "drill")
  *   "on_the_guys" "air_out"                        assert, print
@@ -27,6 +24,18 @@
  *   "finna_hear"                                   read one integer from standard input
  *   "{" "}" "(" ")" "," "."                        punctuation, one byte each
  *   ident     letters, digits and _, not starting with a digit, and not a keyword
+ *
+ * Contextual words (Stage 3): an ident with this text, read as a word only where a rule
+ * below names it, and an ordinary name everywhere else -- so a Stage 2 program that uses
+ * one as a name is still valid and means the same:
+ *   "run_it_back"                                  while
+ *   "laps" "from" "thru"                           for over an integer range, end included
+ *   "up_on" "down_bad"                             > <
+ * "laps" starts a for loop when a name follows it (and no squad is called laps);
+ * "run_it_back" starts a while loop unless "post", "." or "(" ... ")" "no_bap" follows it
+ * -- then it is an assignment or a call, as in Stage 2; "from" and "thru" are read only
+ * inside a for loop; "up_on" and "down_bad" right after an operand are comparisons, since
+ * no name could stand there in Stage 2.
  *   number    decimal digits, no sign, at most 9223372036854775807 (the fawty maximum)
  *   string    bytes between two '"' on one line; only air_out takes one
  *

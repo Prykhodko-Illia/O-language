@@ -209,7 +209,12 @@ tests in the Multipass VM `noble-compilers` instead, with the repository at `~/c
 | `run_it_back cond { … }` | while | `up_on` | `>` |
 | `laps i from a thru b { … }` | for `i` from `a` to `b`, `b` included | `down_bad` | `<` |
 
-All the words are reserved: none of them can be a variable name. Names are ASCII letters, digits and `_`, and do not
+All the words of Stages 1 and 2 are reserved: none of them can be a variable name. The Stage 3 words --
+`run_it_back`, `laps` (with its `from` and `thru`), `up_on` and `down_bad` -- are **contextual**: the lexer
+keeps them as names, and the parser reads one as a word only where nothing in Stage 2 could stand (`laps`
+followed by a name, `run_it_back` not followed by `post`, `.` or a call's `( … ) no_bap`, `up_on` right after
+an operand). So a Stage 2 program that has a variable called `from` or a drill called `laps` still compiles and
+prints the same ([`tests/ok/loop_words_still_names.txt`](tests/ok/loop_words_still_names.txt)). Names are ASCII letters, digits and `_`, and do not
 start with a digit. Whitespace (spaces, tabs, newlines) is free: a statement ends with `no_bap`, not with the line.
 
 ### 💸 Types and constants
@@ -487,38 +492,38 @@ air_out(first_multiple(7, 100)) no_bap              lowkey 7
 In the tree a loop is a `While run_it_back` with a `Cond` and a `Body`, or a `For laps i` with its `Counter`,
 `From`, `Thru` and `Body`; `--ast-checked` gives the counter its type: `Counter i  : doze`.
 
-**The IR.** `python3 compiler.py` on `laps i from 1 thru 3 { total post total bump i no_bap }` writes this
-`main` (the overflow check of `bump`, its `trap` and `ok` blocks, cut short with `…`):
+**The IR.** `python3 compiler.py` on `laps i from 1 thru 3 { air_out(i) no_bap }` writes this `main`, twenty
+lines of `output.ll` as they are:
 
 ```llvm
 entry:
-  %"total" = alloca i32
   %"i" = alloca i32
-  store i32 0, i32* %"total"
   store i32 1, i32* %"i"
   %"empty" = icmp sgt i32 1, 3
   br i1 %"empty", label %"laps.end", label %"laps.body"
 laps.body:
-  %"total.1" = load i32, i32* %"total"
   %"i.1" = load i32, i32* %"i"
-  %"bump" = call {i32, i1} @"llvm.sadd.with.overflow.i32"(i32 %"total.1", i32 %"i.1")   …
+  %".4" = bitcast [4 x i8]* @"str" to i8*
+  %".5" = call i32 (i8*, ...) @"printf"(i8* %".4", i32 %"i.1")
+  br label %"laps.next"
 laps.next:
   %"i.2" = load i32, i32* %"i"
   %"last" = icmp eq i32 %"i.2", 3
   br i1 %"last", label %"laps.end", label %"laps.step"
+laps.end:
+  ret i32 0
 laps.step:
   %"step" = add i32 %"i.2", 1
   store i32 %"step", i32* %"i"
   br label %"laps.body"
 ```
 
-The entry block evaluates both bounds once, stores the first one into the counter's own `alloca`, and skips the
-whole loop when `from` is greater than `thru` (`icmp sgt`; here both are constants). `laps.body` is the body
-itself, and `laps.next` -- where the body's last block branches -- compares the counter with `thru` **before**
-moving it, so the loop leaves on the last value and the plain `add` in `laps.step` can never overflow.
-`br label %"laps.body"` at the end of `laps.step` is the **back edge**: the only branch to an earlier block,
-which is what makes this a loop. A `run_it_back` has the same shape with three blocks -- `while.cond` evaluates the
-condition and branches into `while.body` or out to `while.end`, and the body ends with `br label %"while.cond"`.
+The `entry` block evaluates both bounds once, stores `from` into the counter's own `alloca`, and jumps straight to
+`laps.end` when `from` is greater than `thru` (`icmp sgt`, here on two constants), so an empty range runs no round.
+`laps.body` is the body itself, and `laps.next` compares the counter with `thru` *before* moving it, so the loop
+leaves on the last value and the plain `add` of `laps.step` can never step past the maximum. The last line,
+`br label %"laps.body"`, is the **back edge** -- the one branch to an earlier block, which makes this a loop -- and a
+`run_it_back` has one too, from the end of `while.body` back to `while.cond`, where its condition is checked again.
 
 ### 🤞 The invariant: `on_the_guys`
 
@@ -932,29 +937,30 @@ With `--optimize` there is no `@"drill.twice"` in the module at all; the paramet
 
 ## 🏀 The real program: free throws at the O
 
-[`programs/freethrows.txt`](programs/freethrows.txt) is a free-throw session tracker for the court. It asks how
-many hoopers step to the line (1 to 5, and asks again until the answer is in range), then lets each one call
-their shots -- `1` for a make, `0` for a miss, `9` when they are done -- and prints their line: the `Hooper` object
-with makes, tries, current and best streak, the shooting percentage, and one 🏀 per make. At the end it names
-the MVP, the best percentage. The loops carry it: a `laps` over the hoopers, a `run_it_back` over each one's
-shots, a `run_it_back` that repeats the question, and a `laps` inside the member function `report` for the balls.
-The `Hooper` squad has member functions `shoot` (a make grows the streak, a miss ends it), `percent` and `report`;
-`in_range` and `banner` are drills, `finna_hear()` reads every answer and `air_out` prints every line.
+[`programs/freethrows.txt`](programs/freethrows.txt) tracks a free-throw session at the court. It asks how many
+hoopers step to the line (1 to 5), then each hooper calls their shots: `1` a make, `0` a miss, `9` done.
+After each hooper it prints their `Hooper` object (makes, tries, streak, best streak), the percentage and one 🏀
+per make; at the end it names the MVP, the best percentage. The squad `Hooper` has member functions `shoot`,
+`percent` and `report`; `in_range` and `banner` are drills; `finna_hear()` reads every answer, `air_out` prints.
+The loops carry it: a `laps` over the hoopers, a `run_it_back` over each hooper's shots, a `run_it_back` that asks
+the count again until it is 1 to 5, and a `laps` in `report` that prints the balls.
+- Session 1, two hoopers, 3 of 4 and 1 of 4: `./freethrows < programs/freethrows.in`
+- Session 2, 0 and 7 rejected, three hoopers and a shot `5` that is no shot: `./freethrows < programs/freethrows.2.in`
+- Each prints exactly `programs/freethrows.expected` / `programs/freethrows.2.expected`; `./run_tests.sh` checks both.
 
-Build it into a native binary -- `llc` and `clang`, no `lli` -- and run the two recorded sessions:
+The binary is built with `llc` and `clang` -- `lli` is not the deliverable:
 
 ```bash
 python3 compiler.py programs/freethrows.txt freethrows.ll
 llc -filetype=obj -relocation-model=pic freethrows.ll -o freethrows.o
 clang -fPIE freethrows.o -o freethrows
-./freethrows < programs/freethrows.in      # two hoopers: 3 of 4 and 1 of 4, hooper 1 is the MVP
-./freethrows < programs/freethrows.2.in    # 0 and 7 rejected, then three hoopers and a 5 that is no shot
-./freethrows                               # your own session
+./freethrows < programs/freethrows.in
+./freethrows < programs/freethrows.2.in
+./freethrows
 ```
 
-Each session's exact output, prompts included, is `programs/freethrows.expected` and
-`programs/freethrows.2.expected`; `./run_tests.sh` builds the binary both with and without `--optimize` and checks
-both sessions on each (with `--optimize`, `banner` is inlined, being called once).
+The last line is a session of your own. `./run_tests.sh` builds the binary both with and without `--optimize` and
+runs both sessions on each (with `--optimize`, `banner` is inlined: it is called once).
 
 ---
 
@@ -967,7 +973,8 @@ the control words (`spot`, `pivot`, `run_it_back`, `laps`, `from`, `thru`, `cuh`
 knows the shapes: the name after `squad` and after `drill`, a squad used as a type (`Point p post …`,
 `sliding Point center no_bap`, `Point drill origin()`), a literal `Point{3, 4}`, a field after a `.`, and a member
 call `c.center.lift(1)`. `spot ok {` stays a condition and a block, as in the compiler: only a name written
-right against its `{` is a literal. A highlighter cannot know which names are squads, so an unknown type like
+right against its `{` is a literal. The contextual Stage 3 words are coloured as words everywhere, even where
+a program uses one as a name. A highlighter cannot know which names are squads, so an unknown type like
 `int x post 5` is coloured as one too -- the compiler is the one that rejects it.
 
 It is a grammar and a language configuration, no code: `lowkey` is the line comment (`Cmd+/` toggles it),
