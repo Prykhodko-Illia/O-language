@@ -54,9 +54,10 @@ The type rules:
   * bump, tuck_in, double_back, breakdown and scraps take two integers and give the
     wider of the two; a line operand is an error;
   * in_tune and fugazi take two integers (any mix of widths) or two lines, and give a line;
+  * up_on (>) and down_bad (<) take two integers (any mix of widths) and give a line;
   * a doze value may go where a fawty is expected -- and that is the only conversion in
     the language: never fawty into doze, never across line;
-  * the condition of spot and of on_the_guys is a line;
+  * the condition of spot, of run_it_back and of on_the_guys is a line;
   * air_out takes a string, an integer, a line or an object; scat takes an integer, a
     line, or nothing;
   * finna_hear() reads one integer from the standard input and is a doze;
@@ -116,6 +117,16 @@ The drill rules:
   * a drill with a result type leaves on every path: its body ends with cuh or scat, or
     with a spot and pivot whose arms both leave -- otherwise it could reach its end.
 
+The loop rules:
+  * run_it_back checks its condition, a line, before every round, and its body is a block
+    of its own: a name declared in it is gone after the '}' and is declared again, fresh,
+    in the next round;
+  * laps i from a thru b: a and b are integers, evaluated once, before the first round;
+    the counter i has the wider of their types and lives in the body's frame -- it is
+    visible only in the body, a declaration in the body cannot reuse its name, and it is
+    never posted to: the loop moves it, from a up to b, b included;
+  * a loop never counts as leaving a drill, even with a cuh inside: it may run no round.
+
 The constant rules (the overflow check the parser could not make):
   * an expression made of numbers, operators and tucked variables whose own value is
     such an expression is a constant: the compiler computes it exactly, with no limit on
@@ -133,8 +144,8 @@ one number of the type it lands in, never as an addition that could overflow on 
 way. Everything that is not constant is checked when the program runs.
 """
 
-from .ast_nodes import (DeclNode, ExitNode, FunctionNode, IfNode, Link, ParamNode, ReturnNode, SquadNode,
-                        StringNode, ThisParam, chain, written)
+from .ast_nodes import (CounterNode, DeclNode, ExitNode, ForNode, FunctionNode, IfNode, Link, ParamNode,
+                        ReturnNode, SquadNode, StringNode, ThisParam, WhileNode, chain, written)
 from .errors import CompileError, error_at
 from .parser import RANGES
 
@@ -223,6 +234,9 @@ class SemanticChecker:
     def declare(self, node):
         if node.name in self.scopes[-1]:  # only this frame: an outer one may be shadowed
             prev = self.scopes[-1][node.name]
+            if isinstance(prev, CounterNode):
+                raise error_at(node, f"'{node.name}' is the counter of this 'laps', declared at "
+                                     f"line {prev.line}:{prev.col}: the body cannot declare it again")
             raise error_at(node, f"'{node.name}' is already declared in this block, "
                                  f"at line {prev.line}:{prev.col}")
         self.scopes[-1][node.name] = node
@@ -280,6 +294,9 @@ class SemanticChecker:
         written_links = getattr(node, "links", [])
         decl, links = self.lookup(node, node.name, written_links)
         target = chain(node.name, written_links)
+        if write and isinstance(decl, CounterNode):
+            raise error_at(node, f"cannot post to '{target}': '{node.name}' is the counter of 'laps', "
+                                 f"the loop moves it by itself")
         if write and isinstance(decl, ParamNode):
             who = "it" if not links else f"'{node.name}'"
             raise error_at(node, f"cannot post to '{target}': {who} is a parameter of "
@@ -440,6 +457,28 @@ class SemanticChecker:
         if node.else_body is not None:
             self.block(node.else_body)
 
+    def visit_while(self, node):
+        self.check_value(node.cond, "line", "the condition of 'run_it_back'")
+        self.block(node.body)
+
+    def visit_for(self, node):
+        start = self.operand(node.start, "'from' takes an integer")
+        end = self.operand(node.end, "'thru' takes an integer")
+        for side, type_name, word in ((node.start, start, "from"), (node.end, end, "thru")):
+            if type_name not in INTEGERS:
+                raise error_at(side, f"'{word}' takes an integer, got {type_name}")
+        counter = node.counter
+        counter.type_name = wider(start, end)
+        for side in (node.start, node.end):     # a constant bound lands in the counter's type
+            self.fits(side, counter.type_name)
+        self.scopes.append({counter.name: counter})   # the body's frame: the counter is in it
+        for stmt in node.body:
+            stmt.accept(self)
+        self.scopes.pop()
+
+    def visit_counter(self, node):
+        pass                              # declared by its loop
+
     def visit_return(self, node):
         fn = self.current_fn
         if fn is None:
@@ -471,6 +510,13 @@ class SemanticChecker:
 
     def visit_binop(self, node):
         left, right = self.value(node.left), self.value(node.right)
+        if node.symbol in (">", "<"):
+            if not (left in INTEGERS and right in INTEGERS):
+                raise error_at(node, f"'{node.op}' compares two integers, got {left} and {right}")
+            self.fits(node.left, "fawty")
+            self.fits(node.right, "fawty")
+            node.type, node.const = "line", None
+            return node.type
         if node.symbol in ("==", "!="):
             if not ((left in INTEGERS and right in INTEGERS) or left == right == "line"):
                 raise error_at(node, f"'{node.op}' compares two integers or two lines, got {left} and {right}")
@@ -586,6 +632,11 @@ def top_level_decls(items):
         elif isinstance(item, IfNode):
             yield from top_level_decls(item.then_body)
             yield from top_level_decls(item.else_body or [])
+        elif isinstance(item, WhileNode):
+            yield from top_level_decls(item.body)
+        elif isinstance(item, ForNode):
+            yield item.counter
+            yield from top_level_decls(item.body)
 
 
 def named(nodes, name):

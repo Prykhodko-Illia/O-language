@@ -14,7 +14,10 @@
  *   "bump" "tuck_in" "double_back"                 + - *
  *   "breakdown" "scraps"                           / %
  *   "in_tune" "fugazi"                             == !=
+ *   "up_on" "down_bad"                             > <
  *   "spot" "pivot"                                 if, else
+ *   "run_it_back"                                  while
+ *   "laps" "from" "thru"                           for over an integer range, end included
  *   "drill" "cuh" "scat"                           function, return, exit
  *                                                  (C++ style: the return type goes before "drill")
  *   "on_the_guys" "air_out"                        assert, print
@@ -41,8 +44,9 @@
  * one, that a call passes as many arguments as the function has parameters, of their
  * types, that a literal has one value per field, that a place names fields that exist and
  * is "sliding" at every link when it is posted to, how a name is found inside a member
- * function, and that a member function that changes its object is called only on a
- * "sliding" one.
+ * function, that a member function that changes its object is called only on a
+ * "sliding" one, and that the counter of "laps" is never posted to and is seen only in
+ * its body.
  *)
 
 program   ::= { item }
@@ -62,7 +66,8 @@ param     ::= type ident
 
 block     ::= "{" statement { statement } "}"
 
-statement ::= decl | assign | call_stmt | if | return | exit | assert | print | inverted
+statement ::= decl | assign | call_stmt | if | while | for | return | exit | assert | print
+            | inverted
 
 decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
 
@@ -77,6 +82,18 @@ place     ::= ident { "." ident }                (* a variable, then a field per
 call_stmt ::= place args "no_bap"               (* twice(3) no_bap, p.lift(1) no_bap *)
 
 if        ::= "spot" expr block [ "pivot" block ]
+
+(* The Stage 3 feature: loops. run_it_back checks its condition before every round;
+ * laps evaluates both bounds once, then runs its body with the counter at every value
+ * from the first to the last, both included -- none when the first is greater. The
+ * counter is a tucked variable of the body; a loop may stand in any block, a loop's
+ * body included, and in a drill or a member function.
+ *     run_it_back n fugazi 0 { n post n tuck_in 1 no_bap }
+ *     laps i from 1 thru 3 { laps j from 1 thru i { air_out(i double_back j) no_bap } }
+ *)
+while     ::= "run_it_back" expr block
+
+for       ::= "laps" ident "from" expr "thru" expr block
 
 return    ::= "cuh" [ expr ] "no_bap"
 
@@ -98,7 +115,7 @@ print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
  *)
 inverted  ::= "pab_on" expr ( "post" place [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
 
-expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
+expr      ::= arith [ ( "in_tune" | "fugazi" | "up_on" | "down_bad" ) arith ]
 
 arith     ::= term { ( "bump" | "tuck_in" ) term }
 
@@ -157,7 +174,7 @@ newline   ::= (* the byte 10 *)
  * for a "bump", so "double_back" binds tighter than "bump"; each loop keeps what it has so
  * far as the left child, so 10 tuck_in 3 tuck_in 2 is (10 - 3) - 2.
  *
- * Statements with a block ("spot", "drill", "squad") end with "}" and take no "no_bap";
+ * Statements with a block ("spot", "run_it_back", "laps", "drill", "squad") end with "}" and take no "no_bap";
  * every other statement ends with "no_bap". A block always has at least one statement.
  * A squad and a function are declared only at the top level, never inside a block; a
  * member function only inside its squad, after the fields.

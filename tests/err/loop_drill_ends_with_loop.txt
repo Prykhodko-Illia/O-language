@@ -1,0 +1,8 @@
+doze drill find(doze n) {
+    laps i from 1 thru n {
+        spot i double_back i in_tune n {
+            cuh i no_bap
+        }
+    }
+}
+air_out(find(9)) no_bap

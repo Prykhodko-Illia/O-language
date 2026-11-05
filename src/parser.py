@@ -9,19 +9,22 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
   param     ::= type ident
   block     ::= "{" statement { statement } "}"
-  statement ::= decl | assign | call_stmt | if | return | exit | assert | print | inverted
+  statement ::= decl | assign | call_stmt | if | while | for | return | exit | assert | print
+              | inverted
   decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
   type      ::= "doze" | "fawty" | "line" | squad_name
   assign    ::= place "post" expr "no_bap"
   place     ::= ident { "." ident }
   call_stmt ::= place args "no_bap"
   if        ::= "spot" expr block [ "pivot" block ]
+  while     ::= "run_it_back" expr block
+  for       ::= "laps" ident "from" expr "thru" expr block
   return    ::= "cuh" [ expr ] "no_bap"
   exit      ::= "scat" [ expr ] "no_bap"
   assert    ::= "on_the_guys" "(" expr ")" "no_bap"
   print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
   inverted  ::= "pab_on" expr ( "post" place [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
-  expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
+  expr      ::= arith [ ( "in_tune" | "fugazi" | "up_on" | "down_bad" ) arith ]
   arith     ::= term { ( "bump" | "tuck_in" ) term }
   term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
   factor    ::= number | "merch" | "woof" | read | literal | place [ args ] | "(" expr ")"
@@ -48,11 +51,11 @@ declared above every use of its name, so the set is always complete when it is n
 """
 
 from .ast_nodes import (AssertNode, AssignNode, BinOpNode, BoolNode, CallNode,
-                        CallStmtNode, DeclNode, ExitNode, FieldDeclNode, FieldNode,
-                        FunctionNode, IfNode, IntNode, Link, LiteralNode,
+                        CallStmtNode, CounterNode, DeclNode, ExitNode, FieldDeclNode, FieldNode,
+                        ForNode, FunctionNode, IfNode, IntNode, Link, LiteralNode,
                         MemberCallNode, ParamNode, ReadNode,
                         PrintNode, ProgramNode, ReturnNode, SquadNode, StringNode,
-                        VarNode)
+                        VarNode, WhileNode)
 from .errors import CompileError
 
 
@@ -256,11 +259,14 @@ class Parser:
         return body
 
     def parse_statement(self):
-        """statement ::= decl | assign | call_stmt | if | return | exit | assert | print"""
+        """statement ::= decl | assign | call_stmt | if | while | for | return | exit | assert
+                      | print | inverted"""
         token = self.peek()
         if token.kind == "keyword":
             method = {
                 "spot": self.parse_if,
+                "run_it_back": self.parse_while,
+                "laps": self.parse_for,
                 "cuh": self.parse_return,
                 "scat": self.parse_exit,
                 "on_the_guys": self.parse_assert,
@@ -391,6 +397,25 @@ class Parser:
             else_body = self.parse_block("the 'pivot' block")
         return IfNode(keyword.line, keyword.col, cond, then_body, else_body)
 
+    def parse_while(self):
+        """while ::= "run_it_back" expr block"""
+        keyword = self.eat()                                   # run_it_back
+        cond = self.parse_expr()
+        body = self.parse_block("the 'run_it_back' block")
+        return WhileNode(keyword.line, keyword.col, cond, body)
+
+    def parse_for(self):
+        """for ::= "laps" ident "from" expr "thru" expr block"""
+        keyword = self.eat()                                   # laps
+        name = self.expect("identifier", None, "the name of the counter after 'laps'")
+        self.expect("keyword", "from", f"'from' after the counter '{name.text}': laps {name.text} from 1 thru 10")
+        start = self.parse_expr()
+        self.expect("keyword", "thru", "'thru' and the last value of the counter")
+        end = self.parse_expr()
+        body = self.parse_block("the 'laps' block")
+        counter = CounterNode(name.line, name.col, name.text)
+        return ForNode(keyword.line, keyword.col, counter, start, end, body)
+
     def parse_return(self):
         """return ::= "cuh" [ expr ] "no_bap" """
         keyword = self.eat()
@@ -428,7 +453,7 @@ class Parser:
         return PrintNode(keyword.line, keyword.col, value)
 
     def parse_expr(self):
-        """expr ::= arith [ ( "in_tune" | "fugazi" ) arith ]"""
+        """expr ::= arith [ ( "in_tune" | "fugazi" | "up_on" | "down_bad" ) arith ]"""
         node = self.parse_arith()
         if self.at_sub("compare"):
             op = self.eat()

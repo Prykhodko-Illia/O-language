@@ -43,12 +43,13 @@ KEYWORDS = {
     "sliding": "mutable", "post": "assign",
     "bump": "operator", "tuck_in": "operator", "double_back": "operator",
     "breakdown": "operator", "scraps": "operator",
-    "in_tune": "compare", "fugazi": "compare",
+    "in_tune": "compare", "fugazi": "compare", "up_on": "compare", "down_bad": "compare",
     "spot": "if", "pivot": "else",
     "drill": "function", "cuh": "return", "scat": "exit",
     "on_the_guys": "assert", "air_out": "print",
     "no_bap": "end", "pab_on": "flip",
     "squad": "squad", "finna_hear": "read",
+    "run_it_back": "while", "laps": "for", "from": "from", "thru": "thru",
 }
 
 COMMENT_WORD = b"lowkey"

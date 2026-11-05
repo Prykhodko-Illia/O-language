@@ -1,0 +1,22 @@
+lowkey up_on is >, down_bad is <: two integers, any widths, give a line
+doze small post 3 no_bap
+fawty big post 3000000000 no_bap
+air_out(small up_on 2) no_bap
+air_out(small up_on 3) no_bap
+air_out(small down_bad 4) no_bap
+air_out(small down_bad 3) no_bap
+air_out(big up_on small) no_bap
+air_out(0 tuck_in 1 down_bad 0) no_bap
+lowkey a comparison binds weaker than arithmetic
+air_out(small bump 1 up_on small double_back 2) no_bap
+lowkey as a condition of spot and run_it_back
+sliding doze best post 0 no_bap
+sliding doze i post 0 no_bap
+run_it_back i down_bad 5 {
+    doze score post i double_back 7 scraps 5 no_bap
+    spot score up_on best {
+        best post score no_bap
+    }
+    i post i bump 1 no_bap
+}
+air_out(best) no_bap

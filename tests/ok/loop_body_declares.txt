@@ -1,0 +1,23 @@
+squad Point {
+    doze x no_bap
+    doze y no_bap
+}
+lowkey the body is a block: a name declared in it is fresh every round
+doze points post 7 no_bap
+sliding doze total post 0 no_bap
+laps i from 1 thru 3 {
+    doze points post i double_back 10 no_bap
+    sliding doze bonus post 1 no_bap
+    bonus post bonus bump points no_bap
+    total post total bump bonus no_bap
+    air_out(bonus) no_bap
+}
+air_out(points) no_bap
+air_out(total) no_bap
+
+sliding doze n post 2 no_bap
+run_it_back n fugazi 0 {
+    Point here post Point{n, n double_back n} no_bap
+    air_out(here) no_bap
+    n post n tuck_in 1 no_bap
+}

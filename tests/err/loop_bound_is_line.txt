@@ -1,0 +1,3 @@
+laps i from 1 thru merch {
+    air_out(i) no_bap
+}

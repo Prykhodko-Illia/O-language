@@ -76,7 +76,7 @@
     "keywords": {
       "patterns": [
         {
-          "match": "\\b(spot|pivot|cuh|scat)\\b",
+          "match": "\\b(spot|pivot|run_it_back|laps|from|thru|cuh|scat)\\b",
           "name": "keyword.control.o-language"
         },
         {
@@ -104,7 +104,7 @@
           "name": "keyword.operator.arithmetic.o-language"
         },
         {
-          "match": "\\b(in_tune|fugazi)\\b",
+          "match": "\\b(in_tune|fugazi|up_on|down_bad)\\b",
           "name": "keyword.operator.comparison.o-language"
         },
         {

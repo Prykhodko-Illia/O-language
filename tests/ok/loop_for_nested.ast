@@ -1,0 +1,66 @@
+Program
+  For laps row
+    Counter row
+    From
+      Int 1
+    Thru
+      Int 4
+    Body
+      Decl sum doze sliding
+        Int 0
+      For laps col
+        Counter col
+        From
+          Int 1
+        Thru
+          Var row
+        Body
+          Assign sum
+            BinOp bump (+)
+              Var sum
+              BinOp double_back (*)
+                Var row
+                Var col
+      Print
+        Var sum
+  Decl rounds doze sliding
+    Int 2
+  While run_it_back
+    Cond
+      BinOp fugazi (!=)
+        Var rounds
+        Int 0
+    Body
+      For laps k
+        Counter k
+        From
+          Int 1
+        Thru
+          Int 2
+        Body
+          Decl left doze sliding
+            Var k
+          While run_it_back
+            Cond
+              BinOp fugazi (!=)
+                Var left
+                Int 0
+            Body
+              Print
+                BinOp bump (+)
+                  BinOp bump (+)
+                    BinOp double_back (*)
+                      Var rounds
+                      Int 100
+                    BinOp double_back (*)
+                      Var k
+                      Int 10
+                  Var left
+              Assign left
+                BinOp tuck_in (-)
+                  Var left
+                  Int 1
+      Assign rounds
+        BinOp tuck_in (-)
+          Var rounds
+          Int 1
