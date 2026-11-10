@@ -1,0 +1,128 @@
+AI usage log - Project Stage 3 (a feature of my own, the optimizer, a real program)
+==================================================================================
+
+Tool:    Claude Code (Claude desktop app, Code tab)
+Model:   Claude Opus 5.5 (claude-opus-5-5)
+Dates:   2026-11-05
+Setup:   The AI read the stage PDF (w10-project-stage3.pdf), my Practice code in ~/Study/compilers
+         (practice-9: the optimizer src/optimizer.py with --remove-unused and tests/opt; practice-8:
+         the while loop and the lambdas) and my Stage 2 code in ~/Study/compilers-proj, and created
+         and edited the files in ~/Study/compilers-proj on my Mac. The tests ran in my Multipass VM
+         noble-compilers (Ubuntu 24.04, LLVM 18, llvmlite in ~/lcd): the AI copied the working tree
+         into the VM's ~/compilers-proj before every run. Commits on the stage3 branch (made from
+         stage2) were made under my own git identity; no commit has the AI as an author or
+         co-author. I push, open the pull request and request the review myself.
+
+How the work was split. As in Stage 2: the AI read the task and the code first, asked me every
+design decision as a multiple-choice question with its recommendation, and only then wrote the
+code, one feature per commit. The language decisions -- which feature, every new keyword, the
+range rule, the ordering operators, what the optimizer may drop, which shapes it inlines, what the
+program does -- are mine: I picked them from the options listed below. The AI wrote the
+implementation, the tests and the documentation.
+
+One session only. Below is every prompt I sent, quoted as written, and every answer I picked in
+the question forms, followed by what the AI did.
+
+
+=====================================
+SESSION 1 - decisions, code and check
+=====================================
+
+1. Prompt:
+   [attached w10-project-stage3.pdf]
+   "look at the stage-3
+
+   again, compilers folder have already some of these implemented
+
+   now, do everything without the additional task from project stage-3
+
+   create new branch from the stage2 branch
+
+   after you will complete this part - run check that will strictly go through the requirements
+   of the task
+
+   after check will be fully completed and requirements strictly followed push and then add
+   vovaskochko as a reviewer
+
+   ask me on some design decisions
+
+   also , do not summarize after each task/ feature - just continue your work until push and PR"
+
+   What the AI did:
+   Read the PDF, my Stage 2 code (lexer, parser, AST, semantic pass, code generator, tests, test
+   script, CI, pre-push hook) and the practice repository (the practice-9 optimizer and the
+   practice-8 while loop and lambdas, in a different language). Ran the Stage 2 tests in the VM
+   (177 passed). Then asked the decisions in three rounds:
+
+   Round 1
+     Feature                                            -> "Loops (Recommended)"
+     What "the additional task" is                      -> "The optional extras" (so no break)
+     An unread declaration whose value may trap         -> "Keep trapping values"
+     (overflow, division by 0)
+     Who writes ai_usage_3.txt                          -> "I draft, you finish"
+   Round 2
+     Keywords                                           -> "run_it_back / laps (Recommended)":
+                                                           run_it_back cond { } and
+                                                           laps i from a thru b { }
+     Range end                                          -> "Inclusive (Recommended)"
+     Which bodies the optimizer inlines                 -> "Tail exits + early-exit spots"
+   Round 3
+     Ordering comparisons for the program               -> "Add up_on / down_bad (Recommended)"
+     The Task 3 program                                 -> "Free-throw session tracker (Recommended)"
+
+
+2. Prompt (sent while the AI was working on prompt 1):
+   "also, stop before pushing"
+
+   What the AI did:
+   Did everything of prompt 1 up to the push, and stopped there: no push, no pull request, no
+   review request. In order:
+   - created the branch stage3 from stage2;
+   - Loops (commit "Loops: run_it_back and laps, up_on and down_bad"): the keywords in the
+     lexer, parse_while and parse_for in the parser, WhileNode, ForNode and CounterNode in the
+     AST, the loop rules in the semantic pass (the condition is a line, the bounds integers, the
+     counter tucked, of the wider bound type, living in the body's frame; a loop never counts as
+     leaving a drill), the blocks and the back edges in the code generator, up_on and down_bad
+     as icmp sgt / slt; 8 valid and 11 invalid tests, the grammar and the VS Code highlighting;
+   - the optimizer (commit "Optimizer: --optimize ..."): src/optimizer.py with the three
+     transformations in rounds, --optimize anywhere on the command line, --optimize --ast, six
+     programs in tests/opt with their output and tree, and run_tests.sh running tests/opt and
+     every other test again with --optimize;
+   - the program (commit "programs/freethrows ..."): programs/freethrows.txt with two recorded
+     sessions, built into a native binary with llc and clang by run_tests.sh;
+   - the README (commit "README: loops, the optimizer and the real program");
+   - this file, as a draft;
+   - the check of every requirement of the PDF, one by one.
+
+
+What I took as it was and what I changed
+----------------------------------------
+- Feature choice and language design (Task 1): mine. Loops, the keywords run_it_back, laps,
+  from, thru, the inclusive end, and the extra operators up_on and down_bad are my answers
+  above. break (an optional extra) is not built, as I asked.
+- Lexer, parser, semantic pass and code generation of the loops (Task 1): written by the AI on
+  top of my Stage 2 code; taken as it was.
+- Optimizer (Task 2): written by the AI, following the idea of my practice-9 optimizer
+  (counting reads per declaration and calls per function, rounds until nothing changes), with
+  the rules I picked: a value that may trap is never dropped, and inlining handles tail exits
+  and early exits in spot. Taken as it was.
+- The program (Task 3): the idea is my pick among the AI's options; the program was written by
+  the AI. Taken as it was.
+- Tests: written by the AI. The expected output of each new test was recorded from the compiled
+  program and then checked against the program by hand (the sums, the counts, the order of the
+  lines); the expected trees of tests/opt were read through to see that each transformation did
+  what its comments say.
+- README, grammar.ebnf, run_tests.sh, the IR excerpts: written by the AI; the IR excerpts are
+  cut from the output.ll the compiler wrote. Taken as it was.
+- Changed by me: nothing in the code so far. [I write here anything I change before submitting.]
+
+
+What I understood (in my own words)
+-----------------------------------
+I understood how does optimizer works. Like, checking and seeing after the stage 3 was finished - how it is implemented in the code and logic underhood.
+As an my own feature - I choosed loops for now, as it was easier to implement
+
+
+Chat transcript: there is no shareable link (Claude Code desktop session). Every prompt I sent is
+quoted above exactly as I wrote it, in order, and every answer I picked in the question forms is
+listed under prompt 1.

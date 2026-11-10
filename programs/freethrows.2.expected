@@ -1,0 +1,33 @@
+🏀 Free throws at the O 🏀
+How many hoopers on the line? (1 to 5)
+1 to 5 hoopers, run it back:
+1 to 5 hoopers, run it back:
+Hooper up:
+1
+Call your shots: 1 make, 0 miss, 9 done
+1, 0 or 9 only
+Hooper{number: 1, made: 4, tries: 5, streak: 0, best: 4}
+percent:
+80
+  🏀
+  🏀
+  🏀
+  🏀
+Hooper up:
+2
+Call your shots: 1 make, 0 miss, 9 done
+Hooper{number: 2, made: 0, tries: 0, streak: 0, best: 0}
+percent:
+0
+Hooper up:
+3
+Call your shots: 1 make, 0 miss, 9 done
+Hooper{number: 3, made: 2, tries: 2, streak: 2, best: 2}
+percent:
+100
+  🏀
+  🏀
+MVP of the session, hooper number:
+3
+shooting percent:
+100

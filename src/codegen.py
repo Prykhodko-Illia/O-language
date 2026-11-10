@@ -37,6 +37,17 @@ exactly one terminator -- br, ret, or the unreachable after a call of exit -- an
 after it. Statements written after a cuh or a scat in the same block are legal and never
 run: they go into a fresh block that nothing branches to.
 
+A loop is the one place where the basic blocks go round. run_it_back is three blocks:
+`while.cond` evaluates the condition and branches into `while.body` or out to `while.end`,
+and the body ends with a br back to `while.cond` -- the back edge. laps i from a thru b
+evaluates a and b once, in the block before the loop, stores a into the counter's slot
+and skips the loop when a > b; `laps.body` runs the body, `laps.next` leaves when the
+counter is b and otherwise adds 1 and branches back to `laps.body` -- that br is the
+back edge. Comparing with b before the addition means the counter never steps past b:
+laps i from 1 thru <the fawty maximum> ends, and the plain add cannot overflow. A
+statement after a cuh inside a loop body goes into a dead block, as anywhere else, and a
+body that left needs no back edge.
+
 A squad is an identified struct type, %"squad.Point" = type {i32, i32}, and an object is
 one alloca of it. A field is reached with a gep: index 0 steps through the pointer to the
 object itself, then one index per link of the chain, so c.center.x is one gep with indices
@@ -299,6 +310,49 @@ class CodeGen:
         # it still gets the statements after the spot and stays valid.
         self.builder.position_at_end(merge_bb)
 
+    def visit_while(self, node):
+        cond_bb = self.function.append_basic_block("while.cond")
+        body_bb = self.function.append_basic_block("while.body")
+        end_bb = self.function.append_basic_block("while.end")
+        self.builder.branch(cond_bb)
+        self.builder.position_at_end(cond_bb)                    # checked before every round
+        self.builder.cbranch(self.value(node.cond, "line"), body_bb, end_bb)
+        self.builder.position_at_end(body_bb)
+        self.statements(node.body)
+        if not self.builder.block.is_terminated:
+            self.builder.branch(cond_bb)                         # the back edge
+        self.builder.position_at_end(end_bb)
+
+    def visit_counter(self, node):
+        pass                                                     # its slot is made by visit_for
+
+    def visit_for(self, node):
+        counter = node.counter
+        llvm_type = LLVM_TYPE[counter.type_name]
+        start = self.value(node.start, counter.type_name)         # both bounds once, in order
+        end = self.value(node.end, counter.type_name)
+        slot = self.alloca_in_entry(llvm_type, counter.name)
+        self.slots[counter] = slot
+        self.builder.store(start, slot)
+        body_bb = self.function.append_basic_block("laps.body")
+        next_bb = self.function.append_basic_block("laps.next")
+        end_bb = self.function.append_basic_block("laps.end")
+        empty = self.builder.icmp_signed(">", start, end, name="empty")
+        self.builder.cbranch(empty, end_bb, body_bb)              # from 5 thru 1: no round
+        self.builder.position_at_end(body_bb)
+        self.statements(node.body)
+        if not self.builder.block.is_terminated:
+            self.builder.branch(next_bb)
+        self.builder.position_at_end(next_bb)
+        current = self.builder.load(slot, name=counter.name)
+        last = self.builder.icmp_signed("==", current, end, name="last")
+        step_bb = self.function.append_basic_block("laps.step")
+        self.builder.cbranch(last, end_bb, step_bb)
+        self.builder.position_at_end(step_bb)
+        self.builder.store(self.builder.add(current, ir.Constant(llvm_type, 1), name="step"), slot)
+        self.builder.branch(body_bb)                             # the back edge
+        self.builder.position_at_end(end_bb)
+
     def visit_return(self, node):
         if node.value is None:
             self.builder.ret_void()
@@ -355,7 +409,7 @@ class CodeGen:
     # -- expressions: return the value the builder produced -----------------
 
     def visit_binop(self, node):
-        if node.symbol in ("==", "!="):
+        if node.symbol in ("==", "!=", ">", "<"):
             left, right = node.left.type, node.right.type
             width = "line" if left == "line" else ("fawty" if "fawty" in (left, right) else "doze")
             lhs, rhs = self.value(node.left, width), self.value(node.right, width)

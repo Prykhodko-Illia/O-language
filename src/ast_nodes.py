@@ -14,17 +14,21 @@ nothing behind, and an operator keeps both its word and the symbol it stands for
     |                      squad (the squad's name for a member function, else None)
     +-- ParamNode          name, type_name
     +-- ThisParam          type_name  -- the object a member function is called on (semantic pass)
+    +-- CounterNode        name  -- the counter of a laps loop; its type comes from the semantic pass
     +-- StmtNode     (abstract)
     |   +-- DeclNode       name, type_name, mutable, init: ExprNode
     |   +-- AssignNode     name, links: [Link], value: ExprNode   -- c.center.x post 5
     |   +-- CallStmtNode   call: CallNode
     |   +-- IfNode         cond: ExprNode, then_body: [StmtNode], else_body: [StmtNode] or None
+    |   +-- WhileNode      cond: ExprNode, body: [StmtNode]              -- run_it_back
+    |   +-- ForNode        counter: CounterNode, start, end: ExprNode, body: [StmtNode]  -- laps
     |   +-- ReturnNode     value: ExprNode or None
     |   +-- ExitNode       value: ExprNode or None
     |   +-- AssertNode     cond: ExprNode
     |   +-- PrintNode      value: StringNode | ExprNode
     +-- ExprNode     (abstract)
-        +-- BinOpNode      op (the word), symbol ('+', '-', '*', '/', '%', '==', '!='), left, right
+        +-- BinOpNode      op (the word), symbol ('+', '-', '*', '/', '%', '==', '!=', '>', '<'),
+        |                  left, right
         +-- CallNode       name, args: [ExprNode]
         +-- MemberCallNode target: VarNode | FieldNode, name, args  -- c.center.lift(1)
         +-- VarNode        name
@@ -68,11 +72,13 @@ class ASTNode:
         before the pass, so --ast is the same either way."""
         return ""
 
-    def dump(self, depth=0):
-        """The tree as text, one node per line, children indented by two spaces."""
-        out = "  " * depth + self.label() + self.note() + "\n"
+    def dump(self, depth=0, notes=True):
+        """The tree as text, one node per line, children indented by two spaces. Without
+        `notes` it is the tree as --ast shows it, even after the semantic pass has run --
+        how --optimize --ast prints the tree the optimizer left."""
+        out = "  " * depth + self.label() + (self.note() if notes else "") + "\n"
         for child in self.children():
-            out += child.dump(depth + 1)
+            out += child.dump(depth + 1, notes)
         return out
 
 
@@ -97,8 +103,8 @@ class StmtNode(ASTNode):
 
     inverted = False                      # written back to front, on a pab_on line
 
-    def dump(self, depth=0):
-        out = super().dump(depth)
+    def dump(self, depth=0, notes=True):
+        out = super().dump(depth, notes)
         if self.inverted:                 # mark the first line of this node
             head, rest = out.split("\n", 1)
             out = head + " (inverted)\n" + rest
@@ -243,6 +249,27 @@ class ThisParam:
         self.type_name = type_name
 
 
+class CounterNode(ASTNode):
+    """The counter of `laps i from a thru b`: a tucked variable that lives in the loop's
+    body, one value per round. The semantic pass gives it its type -- the wider of the
+    two bounds -- and every `i` in the body resolves to this node."""
+
+    mutable = False                       # the loop moves it, the body only reads it
+
+    def __init__(self, line, col, name):
+        super().__init__(line, col)       # position of the name
+        self.name = name
+
+    def label(self):
+        return f"Counter {self.name}"
+
+    def note(self):
+        return f"  : {self.type_name}" if hasattr(self, "type_name") else ""
+
+    def accept(self, visitor):
+        return visitor.visit_counter(self)
+
+
 class DeclNode(StmtNode):
     def __init__(self, line, col, name, type_name, mutable, init):
         super().__init__(line, col)       # position of the name
@@ -322,6 +349,41 @@ class IfNode(StmtNode):
         return visitor.visit_if(self)
 
 
+class WhileNode(StmtNode):
+    def __init__(self, line, col, cond, body):
+        super().__init__(line, col)       # position of 'run_it_back'
+        self.cond = cond                  # ExprNode: a line, checked before every round
+        self.body = body                  # [StmtNode], at least one
+
+    def label(self):
+        return "While run_it_back"
+
+    def children(self):
+        return [Group("Cond", [self.cond]), Group("Body", self.body)]
+
+    def accept(self, visitor):
+        return visitor.visit_while(self)
+
+
+class ForNode(StmtNode):
+    def __init__(self, line, col, counter, start, end, body):
+        super().__init__(line, col)       # position of 'laps'
+        self.counter = counter            # CounterNode
+        self.start = start                # ExprNode: the first value, after 'from'
+        self.end = end                    # ExprNode: the last value, after 'thru' -- included
+        self.body = body                  # [StmtNode], at least one
+
+    def label(self):
+        return f"For laps {self.counter.name}"
+
+    def children(self):
+        return [self.counter, Group("From", [self.start]), Group("Thru", [self.end]),
+                Group("Body", self.body)]
+
+    def accept(self, visitor):
+        return visitor.visit_for(self)
+
+
 class ReturnNode(StmtNode):
     def __init__(self, line, col, value):
         super().__init__(line, col)       # position of 'cuh'
@@ -384,7 +446,7 @@ class PrintNode(StmtNode):
 
 SYMBOLS = {
     "bump": "+", "tuck_in": "-", "double_back": "*", "breakdown": "/", "scraps": "%",
-    "in_tune": "==", "fugazi": "!=",
+    "in_tune": "==", "fugazi": "!=", "up_on": ">", "down_bad": "<",
 }
 
 

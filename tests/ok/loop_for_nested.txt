@@ -1,0 +1,21 @@
+lowkey a loop inside a loop: the inner range depends on the outer counter
+laps row from 1 thru 4 {
+    sliding doze sum post 0 no_bap
+    laps col from 1 thru row {
+        sum post sum bump row double_back col no_bap
+    }
+    air_out(sum) no_bap
+}
+
+lowkey run_it_back around laps, laps around run_it_back
+sliding doze rounds post 2 no_bap
+run_it_back rounds fugazi 0 {
+    laps k from 1 thru 2 {
+        sliding doze left post k no_bap
+        run_it_back left fugazi 0 {
+            air_out(rounds double_back 100 bump k double_back 10 bump left) no_bap
+            left post left tuck_in 1 no_bap
+        }
+    }
+    rounds post rounds tuck_in 1 no_bap
+}

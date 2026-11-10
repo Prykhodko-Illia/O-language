@@ -51,6 +51,10 @@ KEYWORDS = {
     "squad": "squad", "finna_hear": "read",
 }
 
+# The words Stage 3 added -- run_it_back, laps, from, thru, up_on, down_bad -- are not in the
+# table: they stay identifiers, so a Stage 2 program that uses one as a name is still valid.
+# The parser reads them as words only where its rules expect one (src/parser.py).
+
 COMMENT_WORD = b"lowkey"
 
 PUNCT = {ord(c): c for c in "{}(),."}     # '.' walks a field chain: c.center.x

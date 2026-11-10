@@ -9,19 +9,22 @@ Recursive descent, written by hand: one method per rule of grammar.ebnf.
   function  ::= [ type ] "drill" ident "(" [ param { "," param } ] ")" block
   param     ::= type ident
   block     ::= "{" statement { statement } "}"
-  statement ::= decl | assign | call_stmt | if | return | exit | assert | print | inverted
+  statement ::= decl | assign | call_stmt | if | while | for | return | exit | assert | print
+              | inverted
   decl      ::= [ "sliding" ] type ident "post" expr "no_bap"
   type      ::= "doze" | "fawty" | "line" | squad_name
   assign    ::= place "post" expr "no_bap"
   place     ::= ident { "." ident }
   call_stmt ::= place args "no_bap"
   if        ::= "spot" expr block [ "pivot" block ]
+  while     ::= "run_it_back" expr block
+  for       ::= "laps" ident "from" expr "thru" expr block
   return    ::= "cuh" [ expr ] "no_bap"
   exit      ::= "scat" [ expr ] "no_bap"
   assert    ::= "on_the_guys" "(" expr ")" "no_bap"
   print     ::= "air_out" "(" ( string | expr ) ")" "no_bap"
   inverted  ::= "pab_on" expr ( "post" place [ type [ "sliding" ] ] | "cuh" | "scat" ) eol
-  expr      ::= arith [ ( "in_tune" | "fugazi" ) arith ]
+  expr      ::= arith [ ( "in_tune" | "fugazi" | "up_on" | "down_bad" ) arith ]
   arith     ::= term { ( "bump" | "tuck_in" ) term }
   term      ::= factor { ( "double_back" | "breakdown" | "scraps" ) factor }
   factor    ::= number | "merch" | "woof" | read | literal | place [ args ] | "(" expr ")"
@@ -40,6 +43,19 @@ still never looks more than one token ahead:
 A place with args is a call: parse_call when it has no '.' (a CallNode, of a drill or of
 a member function on the same object), parse_member_call when it has one.
 
+The words of Stage 3 -- run_it_back, laps, from, thru, up_on, down_bad -- are contextual: the
+lexer emits them as identifiers, and the parser reads one as a word only where nothing in
+Stage 2 could stand, so every Stage 2 program means what it meant:
+  - `laps` at the start of a statement, followed by a name, starts a for loop: in Stage 2 a
+    name followed by a name is only a declaration with a squad type, and a squad named laps
+    still wins;
+  - `run_it_back` at the start of a statement starts a while loop unless it is followed by
+    "post" or "." (an assignment) or by "(" ... ")" "no_bap" (a call of a drill named so) --
+    the one place where the parser looks past the next token, to the matching ")";
+  - `from` and `thru` are read only inside a laps;
+  - `up_on` and `down_bad` after an operand are comparisons: in Stage 2 no name could follow
+    an operand.
+
 A squad's name is an identifier, so the parser keeps the names of the squads declared so
 far: an identifier among them is a type -- `Point p post ...` is a declaration, and
 `Point{3, 4}` is a literal -- and any other identifier is a variable or a drill. That is
@@ -48,11 +64,11 @@ declared above every use of its name, so the set is always complete when it is n
 """
 
 from .ast_nodes import (AssertNode, AssignNode, BinOpNode, BoolNode, CallNode,
-                        CallStmtNode, DeclNode, ExitNode, FieldDeclNode, FieldNode,
-                        FunctionNode, IfNode, IntNode, Link, LiteralNode,
+                        CallStmtNode, CounterNode, DeclNode, ExitNode, FieldDeclNode, FieldNode,
+                        ForNode, FunctionNode, IfNode, IntNode, Link, LiteralNode,
                         MemberCallNode, ParamNode, ReadNode,
                         PrintNode, ProgramNode, ReturnNode, SquadNode, StringNode,
-                        VarNode)
+                        VarNode, WhileNode)
 from .errors import CompileError
 
 
@@ -119,6 +135,34 @@ class Parser:
     def at_sub(self, sub):
         token = self.peek()
         return token.kind == "keyword" and token.sub == sub
+
+    def at_word(self, word):
+        """A contextual word of Stage 3: an identifier with this text."""
+        return self.at("identifier", word)
+
+    def at_compare(self):
+        return self.at_sub("compare") or self.at_word("up_on") or self.at_word("down_bad")
+
+    def starts_while(self):
+        """run_it_back at the start of a statement: a while loop, unless what follows makes it
+        an assignment or a call statement of something named run_it_back."""
+        after = self.tokens[self.pos + 1]
+        if (after.kind, after.text) in (("keyword", "post"), ("punct", ".")):
+            return False
+        if (after.kind, after.text) != ("punct", "("):
+            return True
+        depth, i = 0, self.pos + 1
+        while self.tokens[i].kind != "eof":           # to the matching ")"
+            token = self.tokens[i]
+            if token.kind == "punct" and token.text == "(":
+                depth += 1
+            elif token.kind == "punct" and token.text == ")":
+                depth -= 1
+                if depth == 0:
+                    following = self.tokens[i + 1]
+                    return (following.kind, following.text) != ("keyword", "no_bap")
+            i += 1
+        return True
 
     def at_type(self):
         """A built-in type, or the name of a squad declared above."""
@@ -256,7 +300,8 @@ class Parser:
         return body
 
     def parse_statement(self):
-        """statement ::= decl | assign | call_stmt | if | return | exit | assert | print"""
+        """statement ::= decl | assign | call_stmt | if | while | for | return | exit | assert
+                      | print | inverted"""
         token = self.peek()
         if token.kind == "keyword":
             method = {
@@ -280,6 +325,10 @@ class Parser:
                 raise self.error("a squad can only be declared at the top level, not inside a block")
         if self.at_type():                                     # Point p post ...
             return self.parse_typed(top_level=False)
+        if self.at_word("laps") and self.tokens[self.pos + 1].kind == "identifier":
+            return self.parse_for()
+        if self.at_word("run_it_back") and self.starts_while():
+            return self.parse_while()
         if token.kind == "identifier":
             return self.parse_assign_or_call()
         raise self.error(f"a statement cannot start with {describe(token)}")
@@ -391,6 +440,25 @@ class Parser:
             else_body = self.parse_block("the 'pivot' block")
         return IfNode(keyword.line, keyword.col, cond, then_body, else_body)
 
+    def parse_while(self):
+        """while ::= "run_it_back" expr block"""
+        keyword = self.eat()                                   # run_it_back
+        cond = self.parse_expr()
+        body = self.parse_block("the 'run_it_back' block")
+        return WhileNode(keyword.line, keyword.col, cond, body)
+
+    def parse_for(self):
+        """for ::= "laps" ident "from" expr "thru" expr block"""
+        keyword = self.eat()                                   # laps
+        name = self.expect("identifier", None, "the name of the counter after 'laps'")
+        self.expect("identifier", "from", f"'from' after the counter '{name.text}': laps {name.text} from 1 thru 10")
+        start = self.parse_expr()
+        self.expect("identifier", "thru", "'thru' and the last value of the counter")
+        end = self.parse_expr()
+        body = self.parse_block("the 'laps' block")
+        counter = CounterNode(name.line, name.col, name.text)
+        return ForNode(keyword.line, keyword.col, counter, start, end, body)
+
     def parse_return(self):
         """return ::= "cuh" [ expr ] "no_bap" """
         keyword = self.eat()
@@ -428,12 +496,12 @@ class Parser:
         return PrintNode(keyword.line, keyword.col, value)
 
     def parse_expr(self):
-        """expr ::= arith [ ( "in_tune" | "fugazi" ) arith ]"""
+        """expr ::= arith [ ( "in_tune" | "fugazi" | "up_on" | "down_bad" ) arith ]"""
         node = self.parse_arith()
-        if self.at_sub("compare"):
+        if self.at_compare():
             op = self.eat()
             node = BinOpNode(op.line, op.col, op.text, node, self.parse_arith())
-            if self.at_sub("compare"):
+            if self.at_compare():
                 raise self.error("only one comparison is allowed in an expression: use ( ) to group")
         return node
 

@@ -1,0 +1,3 @@
+laps i from 1 to 10 {
+    air_out(i) no_bap
+}

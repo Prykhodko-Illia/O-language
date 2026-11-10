@@ -1,0 +1,13 @@
+lowkey run_it_back checks its line before every round: 3, 2, 1, then out
+sliding doze shot_clock post 3 no_bap
+run_it_back shot_clock fugazi 0 {
+    air_out(shot_clock) no_bap
+    shot_clock post shot_clock tuck_in 1 no_bap
+}
+air_out("buzzer") no_bap
+
+lowkey a condition that is woof from the start: the body never runs
+run_it_back woof {
+    air_out("never") no_bap
+}
+air_out(shot_clock) no_bap

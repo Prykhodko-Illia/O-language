@@ -1,0 +1,6 @@
+sliding doze n post 2 no_bap
+run_it_back n fugazi 0 {
+    doze last post n no_bap
+    n post n tuck_in 1 no_bap
+}
+air_out(last) no_bap

@@ -1,0 +1,25 @@
+lowkey from 5 thru 1 is an empty range: no round
+laps i from 5 thru 1 {
+    air_out("never") no_bap
+}
+lowkey from 3 thru 3 is one round
+laps i from 3 thru 3 {
+    air_out(i) no_bap
+}
+lowkey the bounds are evaluated once, before the first round, from first
+doze drill loud(doze n) {
+    air_out(n) no_bap
+    cuh n no_bap
+}
+sliding doze top post 2 no_bap
+laps i from loud(1) thru loud(top) {
+    top post 10 no_bap
+    air_out(i double_back 100) no_bap
+}
+lowkey a fawty bound makes a fawty counter, and thru the maximum still ends
+laps big from 9223372036854775805 thru 9223372036854775807 {
+    air_out(big) no_bap
+}
+laps d from 0 tuck_in 2 thru 2147483647 tuck_in 2147483647 {
+    air_out(d) no_bap
+}
