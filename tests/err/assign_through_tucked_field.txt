@@ -1,0 +1,8 @@
+squad Point {
+    sliding doze x no_bap
+}
+squad Circle {
+    Point center no_bap
+}
+sliding Circle c post Circle{Point{1}} no_bap
+c.center.x post 5 no_bap

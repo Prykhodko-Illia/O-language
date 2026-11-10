@@ -48,11 +48,12 @@ KEYWORDS = {
     "drill": "function", "cuh": "return", "scat": "exit",
     "on_the_guys": "assert", "air_out": "print",
     "no_bap": "end", "pab_on": "flip",
+    "squad": "squad", "finna_hear": "read",
 }
 
 COMMENT_WORD = b"lowkey"
 
-PUNCT = {ord(c): c for c in "{}(),"}
+PUNCT = {ord(c): c for c in "{}(),."}     # '.' walks a field chain: c.center.x
 
 SPACE, TAB, NEWLINE, CR, QUOTE = 32, 9, 10, 13, ord('"')
 

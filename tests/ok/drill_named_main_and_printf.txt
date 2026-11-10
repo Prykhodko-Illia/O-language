@@ -1,0 +1,7 @@
+doze drill main(doze n) {
+    cuh n bump 1 no_bap
+}
+doze drill printf(doze n) {
+    cuh main(n) double_back 2 no_bap
+}
+air_out(printf(20)) no_bap

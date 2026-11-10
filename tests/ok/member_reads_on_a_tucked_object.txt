@@ -1,0 +1,11 @@
+squad Point {
+    sliding doze x no_bap
+    doze drill get() {
+        cuh x no_bap
+    }
+    drill set(doze v) {
+        x post v no_bap
+    }
+}
+Point fixed post Point{9} no_bap
+air_out(fixed.get()) no_bap

@@ -1,0 +1,37 @@
+{
+  "name": "o-language",
+  "displayName": "O-language",
+  "description": "Syntax highlighting for O-language: keywords from the block, squads, drills and pab_on lines.",
+  "version": "0.1.0",
+  "publisher": "o-language",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "o-language",
+        "aliases": [
+          "O-language",
+          "olang"
+        ],
+        "extensions": [
+          ".ol",
+          ".olang"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "o-language",
+        "scopeName": "source.o-language",
+        "path": "./syntaxes/o-language.tmLanguage.json"
+      }
+    ]
+  }
+}

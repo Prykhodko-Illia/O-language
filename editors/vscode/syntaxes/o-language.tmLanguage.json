@@ -1,0 +1,181 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "O-language",
+  "scopeName": "source.o-language",
+  "comment": "The words follow src/lexer.py: every keyword is a whole word, and lowkey starts a comment to the end of the line.",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#squad-declaration"
+    },
+    {
+      "include": "#drill-declaration"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#squad-type"
+    },
+    {
+      "include": "#literal"
+    },
+    {
+      "include": "#member-call"
+    },
+    {
+      "include": "#call"
+    },
+    {
+      "include": "#field"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "match": "\\blowkey\\b.*$",
+      "name": "comment.line.lowkey.o-language"
+    },
+    "string": {
+      "begin": "\"",
+      "end": "\"|$",
+      "name": "string.quoted.double.o-language"
+    },
+    "squad-declaration": {
+      "match": "\\b(squad)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.squad.o-language"
+        },
+        "2": {
+          "name": "entity.name.type.squad.o-language"
+        }
+      }
+    },
+    "drill-declaration": {
+      "match": "\\b(drill)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "storage.type.function.drill.o-language"
+        },
+        "2": {
+          "name": "entity.name.function.o-language"
+        }
+      }
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "\\b(spot|pivot|cuh|scat)\\b",
+          "name": "keyword.control.o-language"
+        },
+        {
+          "match": "\\b(on_the_guys)\\b",
+          "name": "keyword.other.assert.o-language"
+        },
+        {
+          "match": "\\b(pab_on)\\b",
+          "name": "keyword.other.inverted-line.o-language"
+        },
+        {
+          "match": "\\b(doze|fawty|line)\\b",
+          "name": "storage.type.builtin.o-language"
+        },
+        {
+          "match": "\\b(sliding)\\b",
+          "name": "storage.modifier.sliding.o-language"
+        },
+        {
+          "match": "\\b(post)\\b",
+          "name": "keyword.operator.assignment.o-language"
+        },
+        {
+          "match": "\\b(bump|tuck_in|double_back|breakdown|scraps)\\b",
+          "name": "keyword.operator.arithmetic.o-language"
+        },
+        {
+          "match": "\\b(in_tune|fugazi)\\b",
+          "name": "keyword.operator.comparison.o-language"
+        },
+        {
+          "match": "\\b(merch|woof)\\b",
+          "name": "constant.language.boolean.o-language"
+        },
+        {
+          "match": "\\b(air_out|finna_hear)\\b",
+          "name": "support.function.builtin.o-language"
+        },
+        {
+          "match": "\\b(no_bap)\\b",
+          "name": "punctuation.terminator.statement.o-language"
+        }
+      ]
+    },
+    "literal": {
+      "comment": "Point{3, 4}: a name right before '{'. With a space before the '{' it is spot flag { ... }, a condition and a block.",
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\{)",
+      "name": "entity.name.type.squad.o-language"
+    },
+    "member-call": {
+      "match": "(\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+      "captures": {
+        "1": {
+          "name": "punctuation.accessor.o-language"
+        },
+        "2": {
+          "name": "entity.name.function.member.o-language"
+        }
+      }
+    },
+    "call": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+      "name": "entity.name.function.call.o-language"
+    },
+    "field": {
+      "match": "(\\.)\\s*([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": {
+          "name": "punctuation.accessor.o-language"
+        },
+        "2": {
+          "name": "variable.other.member.o-language"
+        }
+      }
+    },
+    "number": {
+      "match": "\\b[0-9]+\\b",
+      "name": "constant.numeric.integer.o-language"
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "match": "[{}]",
+          "name": "punctuation.section.block.o-language"
+        },
+        {
+          "match": "[()]",
+          "name": "punctuation.section.parens.o-language"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.comma.o-language"
+        }
+      ]
+    },
+    "squad-type": {
+      "comment": "A squad used as a type: Point p post ..., sliding Point center no_bap, (Point p, ...), Point drill f(...). The highlighter does not know which names are squads, so an unknown type (int x post 5) is coloured as one too; the compiler rejects it.",
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s+(drill\\b|(?!(doze|fawty|line)\\b)[A-Za-z_][A-Za-z0-9_]*\\s*(post\\b|no_bap\\b|[,)])))",
+      "name": "entity.name.type.squad.o-language"
+    }
+  }
+}

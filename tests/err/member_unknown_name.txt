@@ -1,0 +1,6 @@
+squad Point {
+    doze x no_bap
+    doze drill get() {
+        cuh z no_bap
+    }
+}

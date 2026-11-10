@@ -1,0 +1,4 @@
+doze drill twice(doze n) {
+    cuh n double_back 2 no_bap
+}
+doze x post twice(merch) no_bap

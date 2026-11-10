@@ -1,0 +1,4 @@
+spot merch {
+    doze inner post 1 no_bap
+}
+doze outer post inner no_bap

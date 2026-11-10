@@ -1,0 +1,6 @@
+squad Point {
+    doze x no_bap
+}
+Point a post Point{1} no_bap
+Point b post Point{1} no_bap
+line same post a in_tune b no_bap

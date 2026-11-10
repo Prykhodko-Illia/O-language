@@ -1,0 +1,13 @@
+squad Money {
+    fawty bag no_bap
+    line clean no_bap
+}
+squad Deal {
+    Money cut no_bap
+    doze crew_size no_bap
+}
+doze small post 7 no_bap
+Deal d post Deal{Money{small double_back 1000000, merch}, 4} no_bap
+air_out(d.cut.bag) no_bap
+air_out(d.cut.clean) no_bap
+air_out(d.crew_size) no_bap

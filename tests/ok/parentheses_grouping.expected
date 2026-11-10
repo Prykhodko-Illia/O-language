@@ -1,7 +1,0 @@
-Program
-  Decl x doze tucked
-    BinOp double_back (*)
-      BinOp bump (+)
-        Int 2
-        Int 3
-      Int 4

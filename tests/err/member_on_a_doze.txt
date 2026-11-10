@@ -1,0 +1,2 @@
+doze n post 1 no_bap
+n.jump() no_bap

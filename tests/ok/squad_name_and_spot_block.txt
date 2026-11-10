@@ -1,0 +1,11 @@
+squad Flag {
+    line up no_bap
+}
+line ok post merch no_bap
+Flag f post Flag{ok} no_bap
+spot ok {
+    air_out("ok is a variable: this is a block") no_bap
+}
+spot f.up {
+    air_out("a field in a condition") no_bap
+}

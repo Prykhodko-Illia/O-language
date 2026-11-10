@@ -1,0 +1,27 @@
+squad Point {
+    doze x no_bap
+    sliding doze y no_bap
+
+    doze drill d2() {
+        cuh x double_back x bump y double_back y no_bap
+    }
+    drill lift(doze dy) {                lowkey writes a field: mutating
+        y post y bump dy no_bap
+    }
+}
+
+squad Circle {
+    sliding Point center no_bap
+    fawty r no_bap
+}
+
+Point drill origin() {
+    cuh Point{0, 0} no_bap
+}
+
+sliding Circle c post Circle{Point{finna_hear(), finna_hear()}, 5} no_bap
+c.center.lift(1) no_bap                  lowkey c and center are sliding: ok
+Point o post origin() no_bap
+air_out(c) no_bap
+air_out(o.x in_tune 0) no_bap
+scat c.center.d2() no_bap

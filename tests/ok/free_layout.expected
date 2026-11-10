@@ -1,15 +1,1 @@
-Program
-  Decl x doze sliding
-    Int 1
-  Assign x
-    BinOp bump (+)
-      Var x
-      Int 1
-  If
-    Cond
-      BinOp in_tune (==)
-        Var x
-        Int 2
-    Then
-      Exit
-        Var x
+Program exit with result 2

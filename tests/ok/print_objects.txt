@@ -1,0 +1,21 @@
+squad Point {
+    sliding doze x no_bap
+    doze y no_bap
+    Point drill flipped() {
+        cuh Point{y, x} no_bap
+    }
+}
+squad Badge {
+    line real no_bap
+    fawty worth no_bap
+    Point spot_on_map no_bap
+}
+sliding Point p post Point{3, 4} no_bap
+air_out(p) no_bap
+air_out(p.flipped()) no_bap
+air_out(Point{0 tuck_in 1, 0}) no_bap
+Badge b post Badge{merch, 9000000000, p} no_bap
+p.x post 100 no_bap
+air_out(b) no_bap
+air_out(b.spot_on_map) no_bap
+air_out(p) no_bap

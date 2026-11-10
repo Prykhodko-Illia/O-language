@@ -1,7 +1,0 @@
-Program
-  Decl x doze sliding
-    Int 1
-  Assign x
-    BinOp bump (+)
-      Var x
-      Int 41

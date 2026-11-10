@@ -1,0 +1,15 @@
+squad Counter {
+    sliding doze n no_bap
+}
+Counter drill bumped(Counter c, doze times) {
+    spot times in_tune 0 {
+        cuh c no_bap
+    }
+    sliding Counter next post c no_bap
+    next.n post next.n bump 1 no_bap
+    cuh bumped(next, times tuck_in 1) no_bap
+}
+Counter start post Counter{10} no_bap
+Counter done post bumped(start, 5) no_bap
+air_out(start.n) no_bap
+air_out(done.n) no_bap

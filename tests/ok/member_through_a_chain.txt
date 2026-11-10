@@ -1,0 +1,24 @@
+squad Point {
+    sliding doze x no_bap
+    sliding doze y no_bap
+    drill lift(doze dy) {
+        y post y bump dy no_bap
+    }
+    Point drill mirrored() {
+        cuh Point{y, x} no_bap
+    }
+}
+squad Circle {
+    sliding Point center no_bap
+    doze r no_bap
+    drill grow_up() {
+        center.lift(r) no_bap               lowkey a mutating call on a field: grow_up mutates too
+    }
+}
+sliding Circle c post Circle{Point{1, 2}, 10} no_bap
+c.center.lift(1) no_bap
+air_out(c.center.y) no_bap
+c.grow_up() no_bap
+air_out(c.center.y) no_bap
+Point m post c.center.mirrored() no_bap
+air_out(m.x) no_bap

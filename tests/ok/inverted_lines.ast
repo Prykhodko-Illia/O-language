@@ -1,0 +1,17 @@
+Program
+  Decl counter doze sliding (inverted)
+    Int 5
+  Assign counter (inverted)
+    BinOp bump (+)
+      Var counter
+      Int 1
+  Decl big fawty tucked (inverted)
+    BinOp double_back (*)
+      Int 2
+      Int 3
+  Decl ok line tucked (inverted)
+    BinOp in_tune (==)
+      Var counter
+      Int 6
+  Exit (inverted)
+    Int 0

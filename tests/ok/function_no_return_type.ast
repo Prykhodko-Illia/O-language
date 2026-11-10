@@ -1,0 +1,6 @@
+Program
+  Function hello returns nothing
+    Body
+      Print
+        String "hello"
+      Return nothing

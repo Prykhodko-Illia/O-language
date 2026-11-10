@@ -1,0 +1,3 @@
+drill hello() {
+    cuh 1 no_bap
+}

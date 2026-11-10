@@ -1,0 +1,5 @@
+doze drill twice(doze n) {
+    cuh n double_back 2 no_bap
+}
+fawty big post 3 no_bap
+doze x post twice(big) no_bap

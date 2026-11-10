@@ -1,0 +1,6 @@
+squad Point {
+    doze x no_bap
+}
+squad Point {
+    doze y no_bap
+}

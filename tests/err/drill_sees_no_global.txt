@@ -1,0 +1,4 @@
+doze limit post 10 no_bap
+doze drill over(doze n) {
+    cuh n tuck_in limit no_bap
+}

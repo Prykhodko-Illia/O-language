@@ -1,0 +1,7 @@
+doze limit post 10 no_bap
+squad Point {
+    doze x no_bap
+    line drill over() {
+        cuh x fugazi limit no_bap
+    }
+}

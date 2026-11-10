@@ -1,0 +1,3 @@
+squad Point {
+    doze x post 0 no_bap
+}
